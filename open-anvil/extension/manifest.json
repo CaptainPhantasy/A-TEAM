@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open Anvil — Agent Pilot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minimum_chrome_version": "116",
   "description": "Vendor-agnostic browser automation for AI agents. MCP-compatible. Works with Claude, GPT, Gemini, Llama, and any MCP client.",
 
@@ -65,6 +65,12 @@
       "matches": ["<all_urls>"],
       "js": ["dom-observer.js"],
       "all_frames": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["event-streamer.js"],
+      "all_frames": false,
       "run_at": "document_start"
     },
     {

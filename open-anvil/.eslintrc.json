@@ -1,0 +1,47 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "no-const-assign": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-unreachable": "warn",
+    "eqeqeq": ["warn", "always", { "null": "ignore" }],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "no-throw-literal": "warn",
+    "semi": ["warn", "always"],
+    "no-extra-semi": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["extension/**/*.js"],
+      "env": {
+        "browser": true,
+        "webextensions": true
+      },
+      "parserOptions": {
+        "sourceType": "script"
+      },
+      "globals": {
+        "chrome": "readonly",
+        "importScripts": "readonly",
+        "globalThis": "readonly"
+      }
+    },
+    {
+      "files": ["mcp-server/test/**/*.js"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
+}

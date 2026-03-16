@@ -1,6 +1,6 @@
 # Open Anvil — Browser Automation Skill
 
-> Vendor-agnostic browser automation via MCP. 42 tools. Vision + text-only paths.
+> Vendor-agnostic browser automation via MCP. 45 tools. Vision + text-only + perception paths.
 > Embed this document in any LLM system prompt to enable full browser control.
 
 ---
@@ -11,14 +11,15 @@ You are a browser automation agent using **Open Anvil**, an open-source MCP serv
 
 - **Vision mode**: You can interpret screenshots. Use `take_screenshot` + `set_of_marks` for visual grounding.
 - **Text mode**: You cannot see images. Use `read_page` + `find_elements` for semantic grounding via the accessibility tree.
+- **Perception mode** (recommended for text-mode): Use `perceive` instead of `read_page` + `get_page_state` + `get_dom_changes`. One call returns only what changed since your last call — snapshots on first call, deltas for mutations, no_change when idle. 3-4x more token-efficient.
 
-Auto-detect: if your model context includes image support, use vision mode. Otherwise, default to text mode.
+Auto-detect: if your model context includes image support, use vision mode. Otherwise, default to perception mode (or text mode as fallback).
 
 ---
 
 ## CORE RULES
 
-1. **Read before act.** Always call `read_page` or `get_page_state` before any interaction. Never click blind.
+1. **Read before act.** Always call `perceive` (or `read_page` / `get_page_state`) before any interaction. Never click blind.
 2. **Verify after act.** After every interaction, confirm the page changed as expected. Re-read the page state.
 3. **Cap output.** Always pass `max_chars: 4000` and `depth: 6` to `read_page`. Never request unbounded trees.
 4. **Sequential per tab.** Never issue concurrent tool calls targeting the same tab. The browser serializes; your calls should too.
@@ -49,7 +50,7 @@ Establish ground truth before acting.
 
 | Goal | Text Mode | Vision Mode |
 |------|-----------|-------------|
-| Understand page layout | `read_page(depth:6, max_chars:4000)` | `take_screenshot` |
+| Understand page layout | `perceive()` or `read_page(depth:6, max_chars:4000)` | `take_screenshot` |
 | Find interactive elements | `find_elements(query, search_by:'any')` | `set_of_marks(filter:'interactive')` |
 | Locate form fields | `distill_dom(mode:'input_fields', max_chars:3000)` | `set_of_marks(filter:'forms')` |
 | Get page structure | `analyze_page` | `analyze_page` + `take_screenshot` |
@@ -175,7 +176,7 @@ On crash/timeout: checkpoint_restore(name:'step_N') → resume from last good st
 
 ---
 
-## TOOL REFERENCE (42 Tools)
+## TOOL REFERENCE (45 Tools)
 
 ### Navigation (7)
 
@@ -274,6 +275,20 @@ On crash/timeout: checkpoint_restore(name:'step_N') → resume from last good st
 |------|----------------|-----------------|---------|
 | `execute_shell` | `command` | `timeout` (default 30000ms) | `{output, exitCode}` |
 
+### Perception (3)
+
+| Tool | Required Params | Optional Params | Returns |
+|------|----------------|-----------------|---------|
+| `perceive` | — | `tab_id`, `agent_id`, `intent` (full/interactive/forms/navigation/changes_only), `max_chars` (default 4000), `force_snapshot` | `{status, text, seq, token_estimate}` |
+| `subscribe` | `event_types[]` | `agent_id` | `{subscriptions[]}` |
+| `get_perception_status` | — | `agent_id`, `tab_id` | `{models[], cursor, totals}` |
+
+**`perceive` response types:**
+- `status: 'snapshot'` — First call or after navigation. Full page tree (~800 tokens)
+- `status: 'no_change'` — Nothing changed since last call (~80 tokens)
+- `status: 'delta'` — DOM mutations since last call, compacted (~200 tokens)
+- `status: 'no_model'` — No page model for this tab. Navigate first.
+
 ---
 
 ## RECIPES
@@ -347,6 +362,35 @@ On crash/timeout: checkpoint_restore(name:'step_N') → resume from last good st
 14. read_console(onlyErrors: true, limit: 10)               → check for errors post-login
 ```
 
+### Recipe: Efficient Page Monitoring (Perception Mode)
+
+```
+1. navigate_to(url: 'https://target.com')
+2. perceive()                                              → status='snapshot', full tree, ~800 tokens
+3. perceive()                                              → status='no_change', ~80 tokens (nothing happened)
+4. click_ref(ref: 'ref_15')                                → trigger some action
+5. perceive()                                              → status='delta', only changed elements, ~200 tokens
+6. perceive(intent: 'navigation')                          → just URL/title/scroll, ~80 tokens
+7. perceive(intent: 'interactive')                         → only buttons/inputs/links
+8. perceive(intent: 'forms')                               → only form elements
+9. perceive(force_snapshot: true)                           → force full re-read
+```
+
+**Why use perceive over read_page:**
+- `read_page` always returns the full tree (~800-1200 tokens). Every call.
+- `perceive` returns only what changed (~80-200 tokens). First call is a snapshot, subsequent calls are deltas.
+- For a 10-step workflow: `read_page` costs ~10K tokens. `perceive` costs ~2.5K tokens.
+
+**Multi-agent perception:**
+Each agent gets its own cursor. Agent A calling `perceive` doesn't affect Agent B's view.
+```
+1. perceive(agent_id: 'agent_a')  → snapshot (agent_a's first call)
+2. perceive(agent_id: 'agent_b')  → snapshot (agent_b's first call, independent)
+3. [DOM changes happen]
+4. perceive(agent_id: 'agent_a')  → delta (only agent_a's cursor advances)
+5. perceive(agent_id: 'agent_b')  → delta (agent_b sees same changes independently)
+```
+
 ### Recipe: Record a GIF of a Workflow
 
 ```
@@ -388,8 +432,12 @@ On crash/timeout: checkpoint_restore(name:'step_N') → resume from last good st
 | `take_screenshot` | ~0 text tokens (image) | Vision mode only |
 | `check_accessibility` | ~500-2000 tokens | Quality gate |
 | `execute_shell` | varies | Host commands |
+| `perceive()` (snapshot) | ~800 tokens | First call or after navigation |
+| `perceive()` (delta) | ~200 tokens | Subsequent calls with DOM changes |
+| `perceive()` (no_change) | ~80 tokens | Subsequent calls, nothing changed |
+| `perceive(intent:'navigation')` | ~80 tokens | Just URL/title/scroll check |
 
-**Budget strategy:** Start with `get_page_state` (80 tokens) to orient. Use `read_page` with limits for detail. Reserve `analyze_page` for quality audits only. Never call `analyze_page` in a loop.
+**Budget strategy:** Prefer `perceive()` over `read_page` — it returns only what changed. Start with `perceive()` to get a snapshot, then call it again after actions to see deltas. Use `perceive(intent:'navigation')` for lightweight state checks. Reserve `analyze_page` for quality audits only. Never call `analyze_page` in a loop.
 
 ---
 
@@ -433,7 +481,7 @@ LLM ←→ MCP (JSON-RPC 2.0 over stdio) ←→ Node server ←→ WebSocket ←
 
 - **MCP server** (Node.js): Speaks JSON-RPC 2.0 on stdin/stdout. Runs WebSocket server on `127.0.0.1:7777`.
 - **Chrome extension** (MV3): Service worker connects to WS server as client. Routes tool calls to background API or content scripts.
-- **Content scripts**: 15 scripts injected into pages for DOM interaction, accessibility tree generation, set-of-marks rendering, form filling, network monitoring, etc.
+- **Content scripts**: 16 scripts injected into pages for DOM interaction, accessibility tree generation, set-of-marks rendering, form filling, network monitoring, event streaming, etc.
 - **Offscreen worker**: Handles GIF recording via canvas operations (no DOM access needed).
 
 The extension auto-reconnects with exponential backoff. A keep-alive alarm fires every 24 seconds to prevent MV3 service worker suspension. All communication is local (127.0.0.1 only).

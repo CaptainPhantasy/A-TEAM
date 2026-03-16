@@ -8,7 +8,7 @@ importScripts('checkpoint.js');
 importScripts('workflow-recorder.js');
 
 // ─── Configuration ──────────────────────────────────────────────────────────
-const WS_URL = 'ws://127.0.0.1:7777';
+const WS_BASE_URL = 'ws://127.0.0.1:7777';
 const RECONNECT_DELAY_BASE = 1000;
 const RECONNECT_MAX_ATTEMPTS = 20;
 const KEEP_ALIVE_INTERVAL_MIN = 0.4; // ~24 seconds
@@ -33,13 +33,27 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 // ─── WebSocket Connection ───────────────────────────────────────────────────
+async function getWsUrl() {
+  try {
+    const data = await chrome.storage.local.get('anvilWsToken');
+    if (data.anvilWsToken) {
+      return `${WS_BASE_URL}?token=${encodeURIComponent(data.anvilWsToken)}`;
+    }
+  } catch (_) {}
+  return WS_BASE_URL;
+}
+
 function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return;
   }
 
+  getWsUrl().then(wsUrl => _doConnect(wsUrl)).catch(() => _doConnect(WS_BASE_URL));
+}
+
+function _doConnect(wsUrl) {
   try {
-    ws = new WebSocket(WS_URL);
+    ws = new WebSocket(wsUrl);
   } catch (e) {
     console.error('[Anvil] WebSocket creation failed:', e.message);
     scheduleReconnect();
@@ -78,6 +92,11 @@ function connectWebSocket() {
           duration: result.duration
         }));
       }
+    }
+
+    // Server requests fresh snapshots from all tabs (reconnect/init)
+    if (msg.type === 'perception_init') {
+      requestPerceptionSnapshots();
     }
   };
 
@@ -375,6 +394,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     }
 
+    // Forward perception messages from content scripts to server
+    if (message.type === 'perception_events' || message.type === 'perception_snapshot' ||
+        message.type === 'perception_scroll') {
+      forwardPerceptionMessage(message, sender);
+      return false;
+    }
+
     if (message.type === 'interceptor_event' && message.payload) {
       const { payload } = message;
       const safeEvent = { tool: 'browser_event' };
@@ -411,6 +437,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.error('[Anvil] Message handler error:', e);
   }
   return false;
+});
+
+// ─── Perception: Event Forwarding ────────────────────────────────────────
+
+// Forward perception events from content scripts to server (fire-and-forget)
+function forwardPerceptionMessage(message, sender) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const tabId = sender.tab?.id;
+  if (!tabId) return;
+
+  ws.send(JSON.stringify({
+    type: message.type,
+    tabId,
+    ...message
+  }));
+}
+
+// Request fresh snapshots from all tabs
+async function requestPerceptionSnapshots() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (!tab.id || !tab.url || tab.url.startsWith('chrome://')) continue;
+      chrome.tabs.sendMessage(tab.id, { type: 'perception_request_snapshot' }).catch(() => {});
+    }
+  } catch (e) {
+    console.error('[Anvil] Failed to request perception snapshots:', e.message);
+  }
+}
+
+// Tab closed → notify server
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'perception_tab_closed',
+      tabId,
+      timestamp: Date.now()
+    }));
+  }
+});
+
+// Navigation completed → notify server
+chrome.webNavigation.onCompleted.addListener((details) => {
+  if (details.frameId !== 0) return; // main frame only
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'perception_navigation',
+      tabId: details.tabId,
+      url: details.url,
+      timestamp: Date.now()
+    }));
+  }
 });
 
 // ─── Extension Install/Update ───────────────────────────────────────────────

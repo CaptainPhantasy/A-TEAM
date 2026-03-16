@@ -7,6 +7,8 @@ import { createServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createInterface } from 'node:readline';
 import { execSync } from 'node:child_process';
+import { PerceptionEngine, PERCEPTION_ENGINE_VERSION } from './perception-engine.js';
+import { PERCEPTION_TOOL_DEFINITIONS, PERCEPTION_TOOL_NAMES, PERCEPTION_TOOLS_VERSION, handlePerceptionTool } from './perception-tools.js';
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.ANVIL_PORT || '7777', 10);
@@ -14,7 +16,8 @@ const HOST = process.env.ANVIL_HOST || '127.0.0.1';
 const TIMEOUT = parseInt(process.env.ANVIL_TIMEOUT || '30000', 10);
 const DEBUG = process.env.ANVIL_DEBUG === 'true' || process.argv.includes('--debug');
 
-const SERVER_INFO = { name: 'open-anvil', version: '1.0.0' };
+const WS_TOKEN = process.env.ANVIL_WS_TOKEN || '';
+const SERVER_INFO = { name: 'open-anvil', version: '1.1.0' };
 const PROTOCOL_VERSION = '2024-11-05';
 
 // ─── Tool Definitions ───────────────────────────────────────────────────────
@@ -82,7 +85,8 @@ const TOOL_DEFINITIONS = [
   { name: 'execute_shell', description: 'Execute a shell command on the host machine.', inputSchema: objectSchema({ command: { type: 'string', description: 'Shell command to execute.' }, timeout: { type: 'number', description: 'Timeout in ms (default 30000).' } }, ['command']) },
 ];
 
-const TOOL_NAMES = new Set(TOOL_DEFINITIONS.map(t => t.name));
+const ALL_TOOL_DEFINITIONS = [...TOOL_DEFINITIONS, ...PERCEPTION_TOOL_DEFINITIONS];
+const TOOL_NAMES = new Set(ALL_TOOL_DEFINITIONS.map(t => t.name));
 const LOCAL_TOOLS = new Set(['execute_shell']);
 
 // ─── State ──────────────────────────────────────────────────────────────────
@@ -90,10 +94,16 @@ let extensionWs = null;
 const pendingRequests = new Map(); // id → { resolve, timer }
 let requestCounter = 0;
 let initialized = false;
+const perception = new PerceptionEngine();
+let activeTabId = null; // Tracked from extension messages
 
 // ─── Logging ────────────────────────────────────────────────────────────────
 function log(...args) {
   if (DEBUG) process.stderr.write(`[anvil] ${args.join(' ')}\n`);
+}
+
+function logPerception(...args) {
+  process.stderr.write(`[anvil:perception] ${args.join(' ')}\n`);
 }
 
 // ─── MCP stdio Transport ────────────────────────────────────────────────────
@@ -199,6 +209,61 @@ function handleExtensionMessage(data) {
     log('Extension status:', msg.event, JSON.stringify(msg.data || {}));
     return;
   }
+
+  // ── Perception Events (with schema validation) ─────────────────────────
+  if (msg.type === 'perception_events') {
+    if (typeof msg.tabId !== 'number' || !Array.isArray(msg.events)) {
+      log('Dropping malformed perception_events: tabId must be number, events must be array');
+      return;
+    }
+    perception.ingestEvents(msg.tabId, msg.events);
+    logPerception(`events tab=${msg.tabId} count=${msg.events.length}`);
+    return;
+  }
+
+  if (msg.type === 'perception_snapshot') {
+    if (typeof msg.tabId !== 'number') {
+      log('Dropping malformed perception_snapshot: tabId must be number');
+      return;
+    }
+    if (msg.nodes !== undefined && !Array.isArray(msg.nodes)) {
+      log('Dropping malformed perception_snapshot: nodes must be array');
+      return;
+    }
+    perception.ingestSnapshot(msg.tabId, msg);
+    activeTabId = msg.tabId;
+    logPerception(`snapshot tab=${msg.tabId} nodes=${(msg.nodes || []).length} url=${msg.url || '?'}`);
+    return;
+  }
+
+  if (msg.type === 'perception_navigation') {
+    if (typeof msg.tabId !== 'number') {
+      log('Dropping malformed perception_navigation: tabId must be number');
+      return;
+    }
+    perception.ingestNavigation(msg.tabId, msg);
+    logPerception(`navigation tab=${msg.tabId} url=${msg.url || '?'}`);
+    return;
+  }
+
+  if (msg.type === 'perception_scroll') {
+    if (typeof msg.tabId !== 'number') {
+      log('Dropping malformed perception_scroll: tabId must be number');
+      return;
+    }
+    perception.ingestScroll(msg.tabId, { x: msg.x || 0, y: msg.y || 0 });
+    return;
+  }
+
+  if (msg.type === 'perception_tab_closed') {
+    if (typeof msg.tabId !== 'number') {
+      log('Dropping malformed perception_tab_closed: tabId must be number');
+      return;
+    }
+    perception.removeModel(msg.tabId);
+    logPerception(`tab_closed tab=${msg.tabId}`);
+    return;
+  }
 }
 
 // ─── MCP Protocol Handler ───────────────────────────────────────────────────
@@ -239,7 +304,7 @@ async function handleMcpMessage(line) {
 
     case 'tools/list': {
       mcpResult(id, {
-        tools: TOOL_DEFINITIONS.map(t => ({
+        tools: ALL_TOOL_DEFINITIONS.map(t => ({
           name: t.name,
           description: t.description,
           inputSchema: t.inputSchema
@@ -263,6 +328,8 @@ async function handleMcpMessage(line) {
       let result;
       if (LOCAL_TOOLS.has(toolName)) {
         result = handleLocalTool(toolName, toolArgs);
+      } else if (PERCEPTION_TOOL_NAMES.has(toolName)) {
+        result = handlePerceptionTool(perception, toolName, toolArgs, activeTabId);
       } else {
         result = await sendToExtension(toolName, toolArgs);
       }
@@ -300,12 +367,28 @@ const wss = new WebSocketServer({ server: httpServer });
 wss.on('connection', (ws, req) => {
   log(`Extension connected from ${req.socket.remoteAddress}`);
 
+  // ── WebSocket Token Authentication ──────────────────────────────────────
+  if (WS_TOKEN) {
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const clientToken = url.searchParams.get('token');
+    if (clientToken !== WS_TOKEN) {
+      log('Rejecting WebSocket connection: invalid or missing token');
+      ws.close(4401, 'Unauthorized');
+      return;
+    }
+    log('WebSocket token verified');
+  }
+
   if (extensionWs && extensionWs.readyState === WebSocket.OPEN) {
     log('Replacing existing extension connection');
     extensionWs.close();
   }
 
   extensionWs = ws;
+
+  // Request fresh snapshots from all tabs on (re)connect
+  ws.send(JSON.stringify({ type: 'perception_init', version: EXPECTED_VERSION, timestamp: Date.now() }));
+  perception.resetAllCursors();
 
   ws.on('message', handleExtensionMessage);
 
@@ -336,6 +419,14 @@ httpServer.listen(PORT, HOST, () => {
   log(`WebSocket server listening on ws://${HOST}:${PORT}`);
 });
 
+// ─── Perception Housekeeping ─────────────────────────────────────────────
+setInterval(() => {
+  const stats = perception.expireStale();
+  if (stats.expiredCursors > 0) {
+    log(`Perception: expired ${stats.expiredCursors} cursors, ${stats.totalModels} models, ${stats.totalCursors} cursors`);
+  }
+}, 60000);
+
 // ─── stdio MCP Input ────────────────────────────────────────────────────────
 rl.on('line', (line) => {
   const trimmed = line.trim();
@@ -364,6 +455,16 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
+// ─── Version Alignment Check ─────────────────────────────────────────────
+const EXPECTED_VERSION = SERVER_INFO.version;
+const versionMismatch = [];
+if (PERCEPTION_ENGINE_VERSION !== EXPECTED_VERSION) versionMismatch.push(`perception-engine=${PERCEPTION_ENGINE_VERSION}`);
+if (PERCEPTION_TOOLS_VERSION !== EXPECTED_VERSION) versionMismatch.push(`perception-tools=${PERCEPTION_TOOLS_VERSION}`);
+if (versionMismatch.length > 0) {
+  process.stderr.write(`[anvil] WARNING: Version mismatch — server=${EXPECTED_VERSION} but ${versionMismatch.join(', ')}\n`);
+}
+
 log('Open Anvil MCP server started');
+log(`Version: server=${EXPECTED_VERSION} engine=${PERCEPTION_ENGINE_VERSION} tools=${PERCEPTION_TOOLS_VERSION}`);
 log(`Waiting for extension on ws://${HOST}:${PORT}`);
 log('Waiting for MCP client on stdin');

@@ -78,6 +78,8 @@
       _domChanges.shift();
     }
     _domChanges.push(delta);
+    // Stream to perception engine via event-streamer.js
+    if (typeof window.__anvilStreamEvent === 'function') window.__anvilStreamEvent(delta);
   }
 
   // =========================================================================

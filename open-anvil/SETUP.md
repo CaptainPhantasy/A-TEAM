@@ -59,6 +59,7 @@ Send JSON-RPC on stdin, receive responses on stdout.
 | ANVIL_HOST | 127.0.0.1 | Bind address (localhost only for security) |
 | ANVIL_TIMEOUT | 30000 | Tool call timeout in ms |
 | ANVIL_DEBUG | false | Debug logging to stderr |
+| ANVIL_WS_TOKEN | (none) | Shared secret for WebSocket auth. If set, extension must send matching token on connect. |
 
 ## Troubleshooting
 
@@ -71,7 +72,7 @@ Send JSON-RPC on stdin, receive responses on stdout.
 
 **Tools return "No active tab"**: Click on a tab in Chrome to make it active before calling page-level tools.
 
-## Available Tools (42)
+## Available Tools (45)
 
 ### Navigation (7)
 navigate_to, open_tab, close_tab, switch_tab, list_tabs, get_tab_state, get_page_state
@@ -96,3 +97,6 @@ gif_start, gif_add_frame, gif_stop
 
 ### Shell (1)
 execute_shell
+
+### Perception (3)
+perceive, subscribe, get_perception_status
