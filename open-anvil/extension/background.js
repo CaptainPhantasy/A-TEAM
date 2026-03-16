@@ -18,6 +18,52 @@ let ws = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 
+// ─── Connection Status Indicator ─────────────────────────────────────────────
+function updateBadge(connected) {
+  try {
+    chrome.action.setBadgeText({ text: connected ? ' ' : '' });
+    chrome.action.setBadgeBackgroundColor({ color: connected ? '#C0C0C0' : [0, 0, 0, 0] });
+    chrome.action.setTitle({ title: connected ? 'Open Anvil — Debugging' : 'Open Anvil — Disconnected' });
+  } catch (_) {
+    // May fail during early startup
+  }
+}
+updateBadge(false);
+
+// ─── Session Tab Group (silver ring around active tab) ───────────────────────
+let sessionGroupId = null;
+
+async function createSessionGroup() {
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab) return;
+    const groupId = await chrome.tabs.group({ tabIds: [activeTab.id] });
+    await chrome.tabGroups.update(groupId, { title: 'Anvil', color: 'grey', collapsed: false });
+    sessionGroupId = groupId;
+    await chrome.storage.session.set({ anvilActiveGroupId: groupId });
+  } catch (e) {
+    console.error('[Anvil] Failed to create session tab group:', e.message);
+  }
+}
+
+async function removeSessionGroup() {
+  if (!sessionGroupId) {
+    try {
+      const data = await chrome.storage.session.get('anvilActiveGroupId');
+      if (data.anvilActiveGroupId) sessionGroupId = data.anvilActiveGroupId;
+    } catch (_) {}
+  }
+  if (!sessionGroupId) return;
+  try {
+    const tabs = await chrome.tabs.query({ groupId: sessionGroupId });
+    if (tabs.length > 0) await chrome.tabs.ungroup(tabs.map(t => t.id));
+  } catch (_) {
+    // Group may already be gone
+  }
+  sessionGroupId = null;
+  await chrome.storage.session.remove('anvilActiveGroupId').catch(() => {});
+}
+
 // ─── Keep-Alive Alarm ───────────────────────────────────────────────────────
 chrome.alarms.create('anvil-keep-alive', { periodInMinutes: KEEP_ALIVE_INTERVAL_MIN });
 
@@ -63,11 +109,12 @@ function _doConnect(wsUrl) {
   ws.onopen = () => {
     console.log('[Anvil] Connected to MCP server');
     reconnectAttempts = 0;
+    updateBadge(true);
     // Announce ourselves
     ws.send(JSON.stringify({
       type: 'status',
       event: 'connected',
-      data: { version: '1.0.0', agent: 'open-anvil-extension' }
+      data: { version: '1.1.0', agent: 'open-anvil-extension' }
     }));
   };
 
@@ -103,6 +150,7 @@ function _doConnect(wsUrl) {
   ws.onclose = () => {
     console.log('[Anvil] WebSocket closed');
     ws = null;
+    updateBadge(false);
     scheduleReconnect();
   };
 
