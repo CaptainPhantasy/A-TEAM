@@ -1,0 +1,15 @@
+{
+  "name": "open-anvil",
+  "version": "1.0.0",
+  "description": "Vendor-agnostic browser automation toolkit for AI agents — MCP-compatible",
+  "private": true,
+  "workspaces": [
+    "mcp-server"
+  ],
+  "scripts": {
+    "start": "node mcp-server/server.js",
+    "test": "npm test --workspace=mcp-server",
+    "install:deps": "cd mcp-server && npm install"
+  },
+  "license": "MIT"
+}

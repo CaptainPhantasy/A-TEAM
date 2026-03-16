@@ -1,0 +1,7 @@
+node_modules/
+.env
+state/
+debug/trace-*.jsonl
+*.log
+.DS_Store
+extension/background-floyd-original.js

@@ -1,0 +1,28 @@
+{
+  "projectId": "open-anvil",
+  "projectName": "Open Anvil — Vendor-Agnostic Agent Pilot",
+  "currentAgent": "CRITIC",
+  "phase": "COMPLETE",
+  "artifacts": {
+    "spec": "open-anvil/pipeline/artifacts/SPEC.md",
+    "review": "open-anvil/pipeline/artifacts/TECHNICAL-REVIEW.md",
+    "scaffold": "open-anvil/pipeline/artifacts/SCAFFOLDING-MANIFEST.md",
+    "database": "open-anvil/pipeline/artifacts/DATABASE-ARCHITECTURE.md",
+    "code": "open-anvil/pipeline/artifacts/IMPLEMENTATION-REPORT.md",
+    "frontend": "open-anvil/pipeline/artifacts/FRONTEND-REPORT.md",
+    "documentation": "open-anvil/pipeline/artifacts/DOCUMENTATION-REPORT.md"
+  },
+  "verificationReceipts": ["open-anvil/pipeline/receipts/FINAL-VERIFICATION.md"],
+  "issues": [],
+  "qualityGates": [
+    { "gate": 1, "name": "Requirements Quality", "status": "PASS", "agent": "Deep Planner" },
+    { "gate": 2, "name": "Technical Quality", "status": "PASS", "agent": "Deep Thinker" },
+    { "gate": 3, "name": "Build Quality", "status": "PASS", "agent": "Scaffolding Expert" },
+    { "gate": 4, "name": "Database Quality", "status": "PASS", "agent": "Database Specialist" },
+    { "gate": 5, "name": "Code Quality", "status": "PASS", "agent": "Coding Expert" },
+    { "gate": 6, "name": "Design Quality", "status": "PASS", "agent": "Frontend Designer" },
+    { "gate": 7, "name": "Documentation Quality", "status": "PASS", "agent": "Release Documentarian" }
+  ],
+  "createdAt": "2026-03-16T00:00:00Z",
+  "updatedAt": "2026-03-16T00:00:00Z"
+}

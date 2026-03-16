@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FLOYD — The Anvil | Agentic Workflow Architect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   FLOYD ANVIL — ENTERPRISE DARK THEME
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0e17;
+  --surface: #131a2b;
+  --surface-hover: #1a2340;
+  --surface-raised: #182033;
+  --primary: #3b82f6;
+  --primary-glow: rgba(59, 130, 246, 0.25);
+  --secondary: #8b5cf6;
+  --secondary-glow: rgba(139, 92, 246, 0.2);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: #1e293b;
+  --border-focus: #3b82f6;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-sm: 6px;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* -- Focus Ring -- */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* -- Background Pattern -- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* -- Layout -- */
+.container {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   HERO SECTION
+   ============================================================ */
+.hero {
+  text-align: center;
+  padding: 64px 0 48px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.hero-badge .dot {
+  width: 6px; height: 6px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.hero h1 .accent { color: var(--primary); }
+.hero h1 .accent-2 { color: var(--secondary); }
+
+.hero-sub {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto 36px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 12px 28px;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), #2563eb);
+  color: #fff;
+  box-shadow: 0 2px 12px var(--primary-glow);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 20px var(--primary-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--success), #059669);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.25);
+}
+.btn-success:hover:not(:disabled) {
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.btn-lg { padding: 14px 36px; font-size: 1rem; }
+
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 36px;
+  padding: 0 8px;
+  overflow-x: auto;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.step-circle {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.progress-step.active .step-circle {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.progress-step.complete .step-circle {
+  border-color: var(--success);
+  background: var(--success);
+  color: #fff;
+}
+
+.step-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+  transition: background var(--transition);
+}
+
+.progress-step.complete .step-line {
+  background: var(--success);
+}
+
+@media (max-width: 600px) {
+  .step-line { width: 12px; }
+  .step-circle { width: 26px; height: 26px; font-size: 0.65rem; }
+}
+
+/* ============================================================
+   WIZARD CARD
+   ============================================================ */
+.wizard-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.wizard-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+@media (max-width: 600px) {
+  .wizard-card { padding: 28px 20px; }
+}
+
+/* -- Step Panels -- */
+.step-panel {
+  display: none;
+  animation: fadeSlideIn 0.3s ease;
+}
+
+.step-panel.active { display: block; }
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.step-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+.step-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.step-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   FORM ELEMENTS
+   ============================================================ */
+.form-group { margin-bottom: 20px; }
+
+.form-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  font-family: var(--font);
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+  outline: none;
+}
+
+.form-input.error,
+.form-textarea.error,
+.form-select.error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.form-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.form-error {
+  font-size: 0.78rem;
+  color: var(--error);
+  margin-top: 4px;
+  display: none;
+}
+
+.form-error.visible { display: block; }
+
+.form-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* -- Radio Cards -- */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.radio-card:hover { border-color: var(--text-muted); background: var(--surface-hover); }
+
+.radio-card.selected {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.radio-card input[type="radio"] {
+  appearance: none;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all var(--transition);
+  position: relative;
+}
+
+.radio-card.selected input[type="radio"] {
+  border-color: var(--primary);
+}
+
+.radio-card.selected input[type="radio"]::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 8px; height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.radio-card-content { flex: 1; }
+
+.radio-card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.radio-card-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* -- Checkbox Cards -- */
+.checkbox-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 500px) {
+  .checkbox-group { grid-template-columns: 1fr; }
+}
+
+.checkbox-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 0.88rem;
+}
+
+.checkbox-card:hover { border-color: var(--text-muted); }
+
+.checkbox-card.selected {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.checkbox-card input[type="checkbox"] {
+  appearance: none;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all var(--transition);
+  position: relative;
+}
+
+.checkbox-card.selected input[type="checkbox"] {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.checkbox-card.selected input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 1px; left: 4px;
+  width: 5px; height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.wizard-nav-right {
+  display: flex;
+  gap: 10px;
+}
+
+/* ============================================================
+   REVIEW PANEL
+   ============================================================ */
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.review-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.review-table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.review-table td {
+  padding: 12px 14px;
+  vertical-align: top;
+}
+
+.review-table td:first-child {
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  width: 160px;
+}
+
+.review-table td:last-child {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* ============================================================
+   OUTPUT PANEL
+   ============================================================ */
+.output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.output-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  max-height: 600px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.output-panel .section-head {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.output-panel .kv-key {
+  color: var(--success);
+}
+
+.output-panel .kv-val {
+  color: var(--text-primary);
+}
+
+.output-panel .comment {
+  color: var(--text-muted);
+}
+
+/* -- Copy button -- */
+.btn-copy {
+  position: relative;
+}
+
+.btn-copy .copied-toast {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--success);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.btn-copy.show-toast .copied-toast { opacity: 1; }
+
+/* ============================================================
+   SECTIONS VISIBILITY
+   ============================================================ */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ============================================================
+   NOSCRIPT
+   ============================================================ */
+noscript {
+  display: block;
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--warning);
+  font-size: 1.1rem;
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.text-center { text-align: center; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<noscript>
+  <p>FLOYD Anvil requires JavaScript to function. Please enable JavaScript in your browser settings.</p>
+</noscript>
+
+<div class="container">
+
+  <!-- ======== HERO ======== -->
+  <div id="section-hero" class="section active">
+    <div class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        FLOYD v1.0 — Agentic Workflow Architect
+      </div>
+      <h1><span class="accent">The Anvil</span> <span class="accent-2">Builder</span></h1>
+      <p class="hero-sub">
+        Answer 10-12 structured questions about your desired agentic workflow.
+        Get a complete, copy-paste prompt that scaffolds your entire agent — state store, hooks, folder structure, and deterministic prompt pack.
+      </p>
+      <button class="btn btn-primary btn-lg" onclick="startWizard()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Begin Intake
+      </button>
+    </div>
+  </div>
+
+  <!-- ======== WIZARD ======== -->
+  <div id="section-wizard" class="section">
+    <div id="progress-bar" class="progress-bar"></div>
+    <div class="wizard-card">
+
+      <!-- STEP 1: Scenario Name -->
+      <div class="step-panel" data-step="1">
+        <div class="step-label">Step 1</div>
+        <div class="step-title">Scenario Name</div>
+        <p class="step-desc">Give this agentic workflow a clear, descriptive name.</p>
+        <div class="form-group">
+          <label class="form-label" for="f-scenarioName">Name</label>
+          <input type="text" id="f-scenarioName" class="form-input" placeholder="e.g. Nightly Code Auditor" maxlength="100" aria-required="true">
+          <div class="form-error" id="err-scenarioName"></div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Objective -->
+      <div class="step-panel" data-step="2">
+        <div class="step-label">Step 2</div>
+        <div class="step-title">Objective</div>
+        <p class="step-desc">What should this agent accomplish? Lead with a verb.</p>
+        <div class="form-group">
+          <label class="form-label" for="f-objective">Objective Statement</label>
+          <textarea id="f-objective" class="form-textarea" placeholder="e.g. Deploy the staging environment every night at 2 AM, run integration tests, and report failures to Slack." aria-required="true"></textarea>
+          <div class="form-hint">Start with an action verb: Deploy, Monitor, Analyze, Migrate, Generate...</div>
+          <div class="form-error" id="err-objective"></div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Environment -->
+      <div class="step-panel" data-step="3">
+        <div class="step-label">Step 3</div>
+        <div class="step-title">Environment</div>
+        <p class="step-desc">Where will this agent run?</p>
+        <div class="form-group">
+          <label class="form-label" for="f-environment">Target Environment</label>
+          <select id="f-environment" class="form-select" aria-required="true">
+            <option value="">Select an environment...</option>
+            <option value="Claude Code (CLI)">Claude Code (CLI)</option>
+            <option value="GitHub Actions">GitHub Actions</option>
+            <option value="Notion Automation">Notion Automation</option>
+            <option value="Slack Bot">Slack Bot</option>
+            <option value="Vercel/Edge Function">Vercel / Edge Function</option>
+            <option value="Docker Container">Docker Container</option>
+            <option value="Custom">Custom (specify below)</option>
+          </select>
+          <div class="form-error" id="err-environment"></div>
+        </div>
+        <div class="form-group" id="env-custom-group" style="display:none;">
+          <label class="form-label" for="f-environmentCustom">Custom Environment</label>
+          <input type="text" id="f-environmentCustom" class="form-input" placeholder="Describe your custom environment...">
+        </div>
+      </div>
+
+      <!-- STEP 4: Autonomy Mode -->
+      <div class="step-panel" data-step="4">
+        <div class="step-label">Step 4</div>
+        <div class="step-title">Autonomy Mode</div>
+        <p class="step-desc">How much independence should this agent have?</p>
+        <div class="radio-group" id="f-autonomyMode">
+          <label class="radio-card" data-value="A">
+            <input type="radio" name="autonomyMode" value="A" aria-label="Mode A: Human-in-the-Loop">
+            <div class="radio-card-content">
+              <div class="radio-card-title">A — Human-in-the-Loop</div>
+              <div class="radio-card-desc">Agent pauses for approval at every significant action. Safest mode. Good for sensitive operations.</div>
+            </div>
+          </label>
+          <label class="radio-card" data-value="B">
+            <input type="radio" name="autonomyMode" value="B" aria-label="Mode B: Semi-Autonomous">
+            <div class="radio-card-content">
+              <div class="radio-card-title">B — Semi-Autonomous</div>
+              <div class="radio-card-desc">Agent executes routine tasks independently but escalates on errors, ambiguity, or high-risk actions. Requires a state store.</div>
+            </div>
+          </label>
+          <label class="radio-card" data-value="C">
+            <input type="radio" name="autonomyMode" value="C" aria-label="Mode C: Fully Autonomous">
+            <div class="radio-card-content">
+              <div class="radio-card-title">C — Fully Autonomous</div>
+              <div class="radio-card-desc">Agent runs end-to-end without human intervention. Heartbeat, rollback, and safety hooks are mandatory. Requires a state store.</div>
+            </div>
+          </label>
+        </div>
+        <div class="form-error" id="err-autonomyMode"></div>
+      </div>
+
+      <!-- STEP 5: Risk Level -->
+      <div class="step-panel" data-step="5">
+        <div class="step-label">Step 5</div>
+        <div class="step-title">Risk Level</div>
+        <p class="step-desc">What's the blast radius if this agent does something wrong?</p>
+        <div class="radio-group" id="f-riskLevel">
+          <label class="radio-card" data-value="Low">
+            <input type="radio" name="riskLevel" value="Low" aria-label="Low Risk">
+            <div class="radio-card-content">
+              <div class="radio-card-title">Low</div>
+              <div class="radio-card-desc">Read-only operations, local file generation, analysis. Mistakes are easily reversible.</div>
+            </div>
+          </label>
+          <label class="radio-card" data-value="Medium">
+            <input type="radio" name="riskLevel" value="Medium" aria-label="Medium Risk">
+            <div class="radio-card-content">
+              <div class="radio-card-title">Medium</div>
+              <div class="radio-card-desc">Writes to non-production systems, sends notifications, modifies staging data. Some cleanup may be needed.</div>
+            </div>
+          </label>
+          <label class="radio-card" data-value="High">
+            <input type="radio" name="riskLevel" value="High" aria-label="High Risk">
+            <div class="radio-card-content">
+              <div class="radio-card-title">High</div>
+              <div class="radio-card-desc">Production writes, financial transactions, external API mutations, irreversible actions. Safety hooks are mandatory.</div>
+            </div>
+          </label>
+        </div>
+        <div class="form-error" id="err-riskLevel"></div>
+      </div>
+
+      <!-- STEP 6: Tools -->
+      <div class="step-panel" data-step="6">
+        <div class="step-label">Step 6</div>
+        <div class="step-title">Available Tools</div>
+        <p class="step-desc">Which tools/capabilities should this agent have access to? Select all that apply.</p>
+        <div class="checkbox-group" id="f-tools">
+          <label class="checkbox-card" data-value="Read Files"><input type="checkbox" value="Read Files"> Read Files</label>
+          <label class="checkbox-card" data-value="Write Files"><input type="checkbox" value="Write Files"> Write Files</label>
+          <label class="checkbox-card" data-value="Execute Shell"><input type="checkbox" value="Execute Shell"> Execute Shell</label>
+          <label class="checkbox-card" data-value="Git Operations"><input type="checkbox" value="Git Operations"> Git Operations</label>
+          <label class="checkbox-card" data-value="HTTP Requests"><input type="checkbox" value="HTTP Requests"> HTTP Requests</label>
+          <label class="checkbox-card" data-value="Database Access"><input type="checkbox" value="Database Access"> Database Access</label>
+          <label class="checkbox-card" data-value="Send Notifications"><input type="checkbox" value="Send Notifications"> Send Notifications</label>
+          <label class="checkbox-card" data-value="Browser Automation"><input type="checkbox" value="Browser Automation"> Browser Automation</label>
+        </div>
+        <div class="form-group mt-4">
+          <label class="form-label" for="f-toolsCustom">Additional Tools (optional)</label>
+          <input type="text" id="f-toolsCustom" class="form-input" placeholder="e.g. Stripe API, Notion API, custom MCP server...">
+        </div>
+        <div class="form-error" id="err-tools"></div>
+      </div>
+
+      <!-- STEP 7: Inputs -->
+      <div class="step-panel" data-step="7">
+        <div class="step-label">Step 7</div>
+        <div class="step-title">Inputs</div>
+        <p class="step-desc">What data, files, or context does this agent receive when it starts?</p>
+        <div class="form-group">
+          <label class="form-label" for="f-inputs">Input Description</label>
+          <textarea id="f-inputs" class="form-textarea" placeholder="e.g. A git repository URL, a list of target files in JSON format, and an API key stored in .env" aria-required="true"></textarea>
+          <div class="form-error" id="err-inputs"></div>
+        </div>
+      </div>
+
+      <!-- STEP 8: Outputs -->
+      <div class="step-panel" data-step="8">
+        <div class="step-label">Step 8</div>
+        <div class="step-title">Expected Outputs</div>
+        <p class="step-desc">What must this agent produce when it's done?</p>
+        <div class="form-group">
+          <label class="form-label" for="f-outputs">Output Description</label>
+          <textarea id="f-outputs" class="form-textarea" placeholder="e.g. A markdown report saved to ./reports/audit-YYYY-MM-DD.md, a Slack message with summary, and updated status in the state store." aria-required="true"></textarea>
+          <div class="form-error" id="err-outputs"></div>
+        </div>
+      </div>
+
+      <!-- STEP 9: Hard Stops -->
+      <div class="step-panel" data-step="9">
+        <div class="step-label">Step 9</div>
+        <div class="step-title">Hard Stops</div>
+        <p class="step-desc">Under what conditions must this agent immediately halt execution?</p>
+        <div class="form-group">
+          <label class="form-label" for="f-hardStops">Hard Stop Conditions</label>
+          <textarea id="f-hardStops" class="form-textarea" placeholder="e.g. If token budget exceeds $5, if any test fails with exit code > 1, if the target branch has uncommitted changes." aria-required="true"></textarea>
+          <div class="form-hint">These become verbatim STOP conditions in the generated prompt.</div>
+          <div class="form-error" id="err-hardStops"></div>
+        </div>
+      </div>
+
+      <!-- STEP 10: Success Checks -->
+      <div class="step-panel" data-step="10">
+        <div class="step-label">Step 10</div>
+        <div class="step-title">Success Checks</div>
+        <p class="step-desc">How does the agent verify it completed its mission successfully?</p>
+        <div class="form-group">
+          <label class="form-label" for="f-successChecks">Verification Criteria</label>
+          <textarea id="f-successChecks" class="form-textarea" placeholder="e.g. All tests pass (exit code 0), report file exists and is >100 bytes, Slack message was sent (HTTP 200), state store shows status=COMPLETE." aria-required="true"></textarea>
+          <div class="form-error" id="err-successChecks"></div>
+        </div>
+      </div>
+
+      <!-- STEP 11: Heartbeat / State Store (conditional) -->
+      <div class="step-panel" data-step="11">
+        <div class="step-label">Step 11 — Autonomous Mode</div>
+        <div class="step-title">Heartbeat & State Store</div>
+        <p class="step-desc">Autonomous agents need persistent state outside the LLM. Where should checkpoints be stored?</p>
+        <div class="form-group">
+          <label class="form-label" for="f-heartbeatStore">State Store Type</label>
+          <select id="f-heartbeatStore" class="form-select" aria-required="true">
+            <option value="">Select a state store...</option>
+            <option value="JSON File (local)">JSON File (local filesystem)</option>
+            <option value="SQLite Database">SQLite Database</option>
+            <option value="Redis">Redis</option>
+            <option value="Notion Database">Notion Database</option>
+            <option value="Supabase/Postgres">Supabase / Postgres</option>
+            <option value="Custom">Custom (specify below)</option>
+          </select>
+          <div class="form-error" id="err-heartbeatStore"></div>
+        </div>
+        <div class="form-group" id="hb-custom-group" style="display:none;">
+          <label class="form-label" for="f-heartbeatCustom">Custom State Store</label>
+          <input type="text" id="f-heartbeatCustom" class="form-input" placeholder="Describe your state store...">
+        </div>
+        <div class="form-hint mt-4">The heartbeat logic will be: <strong>Check State → Analyze Delta → Execute Next Step → Update Checkpoint</strong></div>
+      </div>
+
+      <!-- STEP 12: Hooks (conditional) -->
+      <div class="step-panel" data-step="12">
+        <div class="step-label">Step 12 — Safety & Hooks</div>
+        <div class="step-title">Hook Configuration</div>
+        <p class="step-desc">Select the safety mechanisms for this agent. High-risk or autonomous agents require at least one hook.</p>
+        <div class="checkbox-group" id="f-hooks">
+          <label class="checkbox-card" data-value="Ralph-Wiggams Hook">
+            <input type="checkbox" value="Ralph-Wiggams Hook">
+            <span>Ralph-Wiggams Hook</span>
+          </label>
+          <label class="checkbox-card" data-value="Budget Hook">
+            <input type="checkbox" value="Budget Hook">
+            <span>Budget Hook</span>
+          </label>
+          <label class="checkbox-card" data-value="Safety Hook (HIL Diff)">
+            <input type="checkbox" value="Safety Hook (HIL Diff)">
+            <span>Safety Hook (HIL Diff)</span>
+          </label>
+          <label class="checkbox-card" data-value="Escalation Hook">
+            <input type="checkbox" value="Escalation Hook">
+            <span>Escalation Hook</span>
+          </label>
+        </div>
+        <div class="form-group mt-4">
+          <label class="form-label" for="f-hooksCustom">Custom Hooks (optional)</label>
+          <input type="text" id="f-hooksCustom" class="form-input" placeholder="e.g. Slack alert on error, PagerDuty escalation...">
+        </div>
+        <div class="form-error" id="err-hooks"></div>
+        <div class="form-hint mt-4">
+          <strong>Ralph-Wiggams:</strong> Periodic "Am I in a loop?" self-check&ensp;|&ensp;
+          <strong>Budget:</strong> Hard token/cost limit&ensp;|&ensp;
+          <strong>Safety:</strong> Diff review before apply&ensp;|&ensp;
+          <strong>Escalation:</strong> Alert human on repeated failure
+        </div>
+      </div>
+
+      <!-- NAVIGATION -->
+      <div class="wizard-nav">
+        <button class="btn btn-secondary" id="btn-back" onclick="wizardBack()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button>
+        <div class="wizard-nav-right">
+          <button class="btn btn-primary" id="btn-next" onclick="wizardNext()">
+            Next
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== REVIEW ======== -->
+  <div id="section-review" class="section">
+    <div class="wizard-card">
+      <div class="step-label">Review</div>
+      <div class="step-title">Intake Summary</div>
+      <p class="step-desc">Verify your answers below. Click "Edit" to change any field, or "Generate Anvil" to produce your prompt.</p>
+      <table class="review-table" id="review-table-body">
+      </table>
+      <div class="wizard-nav">
+        <button class="btn btn-secondary" onclick="editFromReview()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit Answers
+        </button>
+        <div class="wizard-nav-right">
+          <button class="btn btn-success btn-lg" onclick="generatePrompt()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Generate Anvil
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== OUTPUT ======== -->
+  <div id="section-output" class="section">
+    <div class="wizard-card">
+      <div class="output-header">
+        <div>
+          <div class="step-label">Output</div>
+          <div class="step-title">Your Agentic Workflow Prompt</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary btn-copy" id="btn-copy" onclick="copyToClipboard()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+            <span class="copied-toast">Copied!</span>
+          </button>
+        </div>
+      </div>
+      <div class="output-panel" id="output-content"></div>
+      <div class="wizard-nav" style="margin-top:24px;">
+        <button class="btn btn-secondary" onclick="editFromReview()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit & Regenerate
+        </button>
+        <button class="btn btn-danger" onclick="resetAll()">
+          Start Over
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   FLOYD ANVIL — APPLICATION LOGIC
+   ============================================================ */
+
+// -- State --
+const INITIAL_STATE = {
+  scenarioName: '',
+  objective: '',
+  environment: '',
+  environmentCustom: '',
+  autonomyMode: '',
+  riskLevel: '',
+  tools: [],
+  toolsCustom: '',
+  inputs: '',
+  outputs: '',
+  hardStops: '',
+  successChecks: '',
+  heartbeatStore: '',
+  heartbeatCustom: '',
+  hooks: [],
+  hooksCustom: '',
+};
+
+let state = { ...INITIAL_STATE };
+let currentStepIndex = 0; // index into visibleSteps array
+let visibleSteps = [];
+
+// -- Step Definitions --
+const ALL_STEPS = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+function computeVisibleSteps() {
+  const base = [1,2,3,4,5,6,7,8,9,10];
+  const needsHeartbeat = state.autonomyMode === 'B' || state.autonomyMode === 'C';
+  const needsHooks = needsHeartbeat || state.riskLevel === 'High';
+  if (needsHeartbeat) base.push(11);
+  if (needsHooks) base.push(12);
+  return base;
+}
+
+// -- Validation --
+const validators = {
+  1: () => {
+    const v = state.scenarioName.trim();
+    if (!v) return { scenarioName: 'Scenario name is required.' };
+    if (v.length < 3) return { scenarioName: 'Must be at least 3 characters.' };
+    return null;
+  },
+  2: () => {
+    const v = state.objective.trim();
+    if (!v) return { objective: 'Objective is required.' };
+    if (v.length < 10) return { objective: 'Must be at least 10 characters. Start with a verb.' };
+    return null;
+  },
+  3: () => {
+    if (!state.environment) return { environment: 'Select an environment.' };
+    if (state.environment === 'Custom' && !state.environmentCustom.trim()) return { environment: 'Describe your custom environment.' };
+    return null;
+  },
+  4: () => {
+    if (!state.autonomyMode) return { autonomyMode: 'Select an autonomy mode.' };
+    return null;
+  },
+  5: () => {
+    if (!state.riskLevel) return { riskLevel: 'Select a risk level.' };
+    return null;
+  },
+  6: () => {
+    if (state.tools.length === 0 && !state.toolsCustom.trim()) return { tools: 'Select at least one tool or specify a custom tool.' };
+    return null;
+  },
+  7: () => {
+    const v = state.inputs.trim();
+    if (!v) return { inputs: 'Input description is required.' };
+    if (v.length < 10) return { inputs: 'Must be at least 10 characters.' };
+    return null;
+  },
+  8: () => {
+    const v = state.outputs.trim();
+    if (!v) return { outputs: 'Output description is required.' };
+    if (v.length < 10) return { outputs: 'Must be at least 10 characters.' };
+    return null;
+  },
+  9: () => {
+    const v = state.hardStops.trim();
+    if (!v) return { hardStops: 'Hard stop conditions are required.' };
+    if (v.length < 10) return { hardStops: 'Must be at least 10 characters.' };
+    return null;
+  },
+  10: () => {
+    const v = state.successChecks.trim();
+    if (!v) return { successChecks: 'Success checks are required.' };
+    if (v.length < 10) return { successChecks: 'Must be at least 10 characters.' };
+    return null;
+  },
+  11: () => {
+    if (!state.heartbeatStore) return { heartbeatStore: 'Select a state store.' };
+    if (state.heartbeatStore === 'Custom' && !state.heartbeatCustom.trim()) return { heartbeatStore: 'Describe your custom state store.' };
+    return null;
+  },
+  12: () => {
+    if (state.hooks.length === 0 && !state.hooksCustom.trim()) return { hooks: 'Select at least one hook or specify a custom hook.' };
+    return null;
+  },
+};
+
+// -- DOM Helpers --
+function $(id) { return document.getElementById(id); }
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+function clearErrors() {
+  document.querySelectorAll('.form-error').forEach(e => { e.textContent = ''; e.classList.remove('visible'); });
+  document.querySelectorAll('.form-input, .form-textarea, .form-select').forEach(e => e.classList.remove('error'));
+}
+
+function showError(field, msg) {
+  const errEl = $('err-' + field);
+  if (errEl) { errEl.textContent = msg; errEl.classList.add('visible'); }
+  const inputEl = $('f-' + field);
+  if (inputEl) inputEl.classList.add('error');
+}
+
+// -- State Sync: DOM -> State --
+function syncStateFromDOM() {
+  state.scenarioName = ($('f-scenarioName') || {}).value || '';
+  state.objective = ($('f-objective') || {}).value || '';
+  state.environment = ($('f-environment') || {}).value || '';
+  state.environmentCustom = ($('f-environmentCustom') || {}).value || '';
+  state.toolsCustom = ($('f-toolsCustom') || {}).value || '';
+  state.inputs = ($('f-inputs') || {}).value || '';
+  state.outputs = ($('f-outputs') || {}).value || '';
+  state.hardStops = ($('f-hardStops') || {}).value || '';
+  state.successChecks = ($('f-successChecks') || {}).value || '';
+  state.heartbeatStore = ($('f-heartbeatStore') || {}).value || '';
+  state.heartbeatCustom = ($('f-heartbeatCustom') || {}).value || '';
+  state.hooksCustom = ($('f-hooksCustom') || {}).value || '';
+
+  // Radio: autonomyMode
+  const amRadio = document.querySelector('input[name="autonomyMode"]:checked');
+  state.autonomyMode = amRadio ? amRadio.value : state.autonomyMode;
+
+  // Radio: riskLevel
+  const rlRadio = document.querySelector('input[name="riskLevel"]:checked');
+  state.riskLevel = rlRadio ? rlRadio.value : state.riskLevel;
+
+  // Checkboxes: tools
+  state.tools = [];
+  document.querySelectorAll('#f-tools input[type="checkbox"]:checked').forEach(cb => state.tools.push(cb.value));
+
+  // Checkboxes: hooks
+  state.hooks = [];
+  document.querySelectorAll('#f-hooks input[type="checkbox"]:checked').forEach(cb => state.hooks.push(cb.value));
+}
+
+// -- State Sync: State -> DOM --
+function syncDOMFromState() {
+  if ($('f-scenarioName')) $('f-scenarioName').value = state.scenarioName;
+  if ($('f-objective')) $('f-objective').value = state.objective;
+  if ($('f-environment')) $('f-environment').value = state.environment;
+  if ($('f-environmentCustom')) $('f-environmentCustom').value = state.environmentCustom;
+  if ($('f-toolsCustom')) $('f-toolsCustom').value = state.toolsCustom;
+  if ($('f-inputs')) $('f-inputs').value = state.inputs;
+  if ($('f-outputs')) $('f-outputs').value = state.outputs;
+  if ($('f-hardStops')) $('f-hardStops').value = state.hardStops;
+  if ($('f-successChecks')) $('f-successChecks').value = state.successChecks;
+  if ($('f-heartbeatStore')) $('f-heartbeatStore').value = state.heartbeatStore;
+  if ($('f-heartbeatCustom')) $('f-heartbeatCustom').value = state.heartbeatCustom;
+  if ($('f-hooksCustom')) $('f-hooksCustom').value = state.hooksCustom;
+
+  // Radios
+  document.querySelectorAll('input[name="autonomyMode"]').forEach(r => {
+    r.checked = r.value === state.autonomyMode;
+    r.closest('.radio-card').classList.toggle('selected', r.checked);
+  });
+  document.querySelectorAll('input[name="riskLevel"]').forEach(r => {
+    r.checked = r.value === state.riskLevel;
+    r.closest('.radio-card').classList.toggle('selected', r.checked);
+  });
+
+  // Checkboxes: tools
+  document.querySelectorAll('#f-tools input[type="checkbox"]').forEach(cb => {
+    cb.checked = state.tools.includes(cb.value);
+    cb.closest('.checkbox-card').classList.toggle('selected', cb.checked);
+  });
+
+  // Checkboxes: hooks
+  document.querySelectorAll('#f-hooks input[type="checkbox"]').forEach(cb => {
+    cb.checked = state.hooks.includes(cb.value);
+    cb.closest('.checkbox-card').classList.toggle('selected', cb.checked);
+  });
+
+  // Conditional fields
+  const envCustom = $('env-custom-group');
+  if (envCustom) envCustom.style.display = state.environment === 'Custom' ? 'block' : 'none';
+  const hbCustom = $('hb-custom-group');
+  if (hbCustom) hbCustom.style.display = state.heartbeatStore === 'Custom' ? 'block' : 'none';
+}
+
+// -- Progress Bar --
+function renderProgressBar() {
+  const bar = $('progress-bar');
+  bar.innerHTML = '';
+  visibleSteps.forEach((stepNum, i) => {
+    const div = document.createElement('div');
+    div.className = 'progress-step';
+    if (i < currentStepIndex) div.classList.add('complete');
+    if (i === currentStepIndex) div.classList.add('active');
+
+    const circle = document.createElement('div');
+    circle.className = 'step-circle';
+    circle.textContent = i + 1;
+    if (i < currentStepIndex) circle.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    div.appendChild(circle);
+
+    if (i < visibleSteps.length - 1) {
+      const line = document.createElement('div');
+      line.className = 'step-line';
+      div.appendChild(line);
+    }
+    bar.appendChild(div);
+  });
+}
+
+// -- Show Step --
+function showStep() {
+  const stepNum = visibleSteps[currentStepIndex];
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.querySelector(`.step-panel[data-step="${stepNum}"]`);
+  if (panel) panel.classList.add('active');
+
+  // Back button visibility
+  $('btn-back').style.visibility = currentStepIndex === 0 ? 'hidden' : 'visible';
+
+  // Next button text
+  const isLast = currentStepIndex === visibleSteps.length - 1;
+  $('btn-next').innerHTML = isLast
+    ? 'Review <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+
+  renderProgressBar();
+  syncDOMFromState();
+  clearErrors();
+
+  // Focus first input in panel
+  setTimeout(() => {
+    const firstInput = panel ? panel.querySelector('input, textarea, select') : null;
+    if (firstInput && firstInput.type !== 'radio' && firstInput.type !== 'checkbox') firstInput.focus();
+  }, 100);
+}
+
+// -- Navigation --
+function startWizard() {
+  visibleSteps = computeVisibleSteps();
+  currentStepIndex = 0;
+  showSection('section-wizard');
+  showStep();
+}
+
+function wizardNext() {
+  syncStateFromDOM();
+  clearErrors();
+
+  const stepNum = visibleSteps[currentStepIndex];
+  const validate = validators[stepNum];
+  if (validate) {
+    const errs = validate();
+    if (errs) {
+      Object.entries(errs).forEach(([field, msg]) => showError(field, msg));
+      return;
+    }
+  }
+
+  // Recompute visible steps after changes to autonomy/risk
+  visibleSteps = computeVisibleSteps();
+
+  if (currentStepIndex >= visibleSteps.length - 1) {
+    showReview();
+    return;
+  }
+
+  currentStepIndex++;
+  showStep();
+}
+
+function wizardBack() {
+  if (currentStepIndex <= 0) return;
+  syncStateFromDOM();
+  currentStepIndex--;
+  visibleSteps = computeVisibleSteps();
+  showStep();
+}
+
+// -- Review --
+function showReview() {
+  syncStateFromDOM();
+  showSection('section-review');
+
+  const env = state.environment === 'Custom' ? state.environmentCustom : state.environment;
+  const allTools = [...state.tools];
+  if (state.toolsCustom.trim()) allTools.push(state.toolsCustom.trim());
+  const allHooks = [...state.hooks];
+  if (state.hooksCustom.trim()) allHooks.push(state.hooksCustom.trim());
+  const hbStore = state.heartbeatStore === 'Custom' ? state.heartbeatCustom : state.heartbeatStore;
+
+  const autonomyLabels = { A: 'A — Human-in-the-Loop', B: 'B — Semi-Autonomous', C: 'C — Fully Autonomous' };
+
+  let rows = [
+    ['Scenario Name', esc(state.scenarioName)],
+    ['Objective', esc(state.objective)],
+    ['Environment', esc(env)],
+    ['Autonomy Mode', esc(autonomyLabels[state.autonomyMode] || state.autonomyMode)],
+    ['Risk Level', esc(state.riskLevel)],
+    ['Tools', esc(allTools.join(', '))],
+    ['Inputs', esc(state.inputs)],
+    ['Expected Outputs', esc(state.outputs)],
+    ['Hard Stops', esc(state.hardStops)],
+    ['Success Checks', esc(state.successChecks)],
+  ];
+
+  const needsHB = state.autonomyMode === 'B' || state.autonomyMode === 'C';
+  const needsHooks = needsHB || state.riskLevel === 'High';
+  if (needsHB) rows.push(['State Store', esc(hbStore)]);
+  if (needsHooks) rows.push(['Hooks', esc(allHooks.join(', '))]);
+
+  $('review-table-body').innerHTML = rows.map(([k, v]) =>
+    `<tr><td>${k}</td><td>${v}</td></tr>`
+  ).join('');
+}
+
+function editFromReview() {
+  visibleSteps = computeVisibleSteps();
+  showSection('section-wizard');
+  showStep();
+}
+
+// -- XSS Escape --
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// -- Prompt Generation --
+function generatePrompt() {
+  const env = state.environment === 'Custom' ? state.environmentCustom : state.environment;
+  const allTools = [...state.tools];
+  if (state.toolsCustom.trim()) allTools.push(state.toolsCustom.trim());
+  const allHooks = [...state.hooks];
+  if (state.hooksCustom.trim()) allHooks.push(state.hooksCustom.trim());
+  const hbStore = state.heartbeatStore === 'Custom' ? state.heartbeatCustom : state.heartbeatStore;
+  const autonomyLabels = { A: 'Human-in-the-Loop', B: 'Semi-Autonomous', C: 'Fully Autonomous' };
+  const needsHB = state.autonomyMode === 'B' || state.autonomyMode === 'C';
+  const needsHooks = needsHB || state.riskLevel === 'High';
+
+  const scenarioSlug = state.scenarioName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+
+  let prompt = '';
+
+  // ── SECTION 1: INTAKE SUMMARY (SOT) ──
+  prompt += `# FLOYD ANVIL — Agentic Workflow Blueprint\n`;
+  prompt += `# Generated by FLOYD Anvil v1.0 | ${new Date().toISOString().slice(0, 10)}\n`;
+  prompt += `# Source of Truth (SOT) — Do NOT modify this section\n\n`;
+  prompt += `## 1. INTAKE SUMMARY (SOT)\n\n`;
+  prompt += `| Field | Value |\n`;
+  prompt += `|-------|-------|\n`;
+  prompt += `| Scenario | ${state.scenarioName} |\n`;
+  prompt += `| Objective | ${state.objective} |\n`;
+  prompt += `| Environment | ${env} |\n`;
+  prompt += `| Autonomy | ${state.autonomyMode} — ${autonomyLabels[state.autonomyMode]} |\n`;
+  prompt += `| Risk Level | ${state.riskLevel} |\n`;
+  prompt += `| Tools | ${allTools.join(', ')} |\n`;
+  prompt += `| Inputs | ${state.inputs} |\n`;
+  prompt += `| Outputs | ${state.outputs} |\n`;
+  prompt += `| Hard Stops | ${state.hardStops} |\n`;
+  prompt += `| Success Checks | ${state.successChecks} |\n`;
+  if (needsHB) prompt += `| State Store | ${hbStore} |\n`;
+  if (needsHooks) prompt += `| Hooks | ${allHooks.join(', ')} |\n`;
+  prompt += `\n---\n\n`;
+
+  // ── SECTION 2: DETERMINISTIC PROMPT PACK ──
+  prompt += `## 2. DETERMINISTIC PROMPT PACK\n\n`;
+  prompt += `### System Prompt\n\n`;
+  prompt += `\`\`\`\n`;
+  prompt += `# ROLE: ${state.scenarioName} — Autonomous Executor\n\n`;
+  prompt += `## IDENTITY\n`;
+  prompt += `You are a deterministic agent named "${state.scenarioName}". You operate in the ${env} environment.\n`;
+  prompt += `Your mission: ${state.objective}\n\n`;
+  prompt += `## AUTONOMY: Mode ${state.autonomyMode} (${autonomyLabels[state.autonomyMode]})\n`;
+  if (state.autonomyMode === 'A') {
+    prompt += `You MUST pause and request human approval before every state-changing action.\n`;
+    prompt += `Present: [PROPOSED ACTION] + [EXPECTED OUTCOME] + [RISK ASSESSMENT]\n`;
+    prompt += `Wait for explicit "APPROVED" before proceeding.\n\n`;
+  } else if (state.autonomyMode === 'B') {
+    prompt += `You may execute routine, low-risk actions independently.\n`;
+    prompt += `You MUST escalate to human when: (1) error encountered, (2) ambiguity detected, (3) action risk > Medium.\n`;
+    prompt += `All actions must be idempotent — safe to re-run on heartbeat restart.\n\n`;
+  } else {
+    prompt += `You operate fully independently. All actions must be idempotent.\n`;
+    prompt += `You MUST have a working heartbeat and state checkpoint before starting.\n`;
+    prompt += `You MUST self-verify after every action via the Evidence Rule.\n\n`;
+  }
+  prompt += `## REASONING CHAIN (Mandatory for every action)\n`;
+  prompt += `THOUGHT: Analyze current state against goal. What needs to happen next?\n`;
+  prompt += `ACTION: Execute exactly one authorized tool command.\n`;
+  prompt += `OBSERVATION: Capture the raw output.\n`;
+  prompt += `EVIDENCE: Provide FILE:<path>, CMD:<command>, or OUTPUT:<hash> proving the action occurred.\n`;
+  prompt += `STATE_UPDATE: Write checkpoint to state store.\n\n`;
+  prompt += `## AUTHORIZED TOOLS (Exhaustive — you may NOT use any tool not on this list)\n`;
+  allTools.forEach(t => { prompt += `- ${t}\n`; });
+  prompt += `\n## INPUTS\n${state.inputs}\n\n`;
+  prompt += `## EXPECTED OUTPUTS\n${state.outputs}\n\n`;
+  prompt += `## HARD STOPS (Verbatim — if ANY condition is true, HALT immediately)\n`;
+  state.hardStops.split('\n').filter(l => l.trim()).forEach(line => {
+    prompt += `- ${line.trim()}\n`;
+  });
+  prompt += `\n## SUCCESS CHECKS (Agent must verify ALL before reporting COMPLETE)\n`;
+  state.successChecks.split('\n').filter(l => l.trim()).forEach(line => {
+    prompt += `- ${line.trim()}\n`;
+  });
+  prompt += `\`\`\`\n\n---\n\n`;
+
+  // ── SECTION 3: AGENT SPEC ──
+  prompt += `## 3. AGENT SPEC (Config-Ready)\n\n`;
+  prompt += `\`\`\`yaml\n`;
+  prompt += `name: "${state.scenarioName}"\n`;
+  prompt += `slug: "${scenarioSlug}"\n`;
+  prompt += `environment: "${env}"\n`;
+  prompt += `autonomy_mode: "${state.autonomyMode}"\n`;
+  prompt += `risk_level: "${state.riskLevel}"\n`;
+  prompt += `permissions:\n`;
+  allTools.forEach(t => {
+    const perm = t.toLowerCase().includes('write') || t.toLowerCase().includes('execute') || t.toLowerCase().includes('shell') ? 'write' : 'read';
+    prompt += `  - tool: "${t}"\n    scope: ${perm}\n`;
+  });
+  if (needsHB) {
+    prompt += `state_store:\n`;
+    prompt += `  type: "${hbStore}"\n`;
+    prompt += `  path: "./${scenarioSlug}/state/checkpoint.json"\n`;
+  }
+  if (needsHooks) {
+    prompt += `hooks:\n`;
+    allHooks.forEach(h => {
+      prompt += `  - name: "${h}"\n`;
+      if (h.includes('Ralph')) prompt += `    trigger: "every_5_actions"\n    action: "self_check_loop_detection"\n`;
+      else if (h.includes('Budget')) prompt += `    trigger: "token_count > budget_limit"\n    action: "halt_and_log"\n`;
+      else if (h.includes('Safety')) prompt += `    trigger: "before_write_action"\n    action: "generate_diff_and_pause_for_hil"\n`;
+      else if (h.includes('Escalation')) prompt += `    trigger: "retries > 3 OR ambiguity_score > 8"\n    action: "alert_human_and_wait"\n`;
+      else prompt += `    trigger: "custom"\n    action: "custom"\n`;
+    });
+  }
+  prompt += `\`\`\`\n\n---\n\n`;
+
+  // ── SECTION 4: WORKFLOW SPEC (THE ANVIL) ──
+  prompt += `## 4. WORKFLOW SPEC — The Anvil Design\n\n`;
+
+  // Folder structure
+  prompt += `### 4.1 Project Structure\n\n`;
+  prompt += `Create the following directory tree and files:\n\n`;
+  prompt += `\`\`\`bash\n`;
+  prompt += `mkdir -p ${scenarioSlug}/{state,logs,hooks,output}\n\n`;
+  prompt += `# State schema\ncat > ${scenarioSlug}/state/checkpoint.json << 'STATEEOF'\n`;
+  prompt += `{\n`;
+  prompt += `  "agent": "${state.scenarioName}",\n`;
+  prompt += `  "version": "1.0.0",\n`;
+  prompt += `  "status": "INIT",\n`;
+  prompt += `  "current_step": 0,\n`;
+  prompt += `  "total_steps": 0,\n`;
+  prompt += `  "last_action": null,\n`;
+  prompt += `  "last_evidence": null,\n`;
+  prompt += `  "error_count": 0,\n`;
+  prompt += `  "retries": 0,\n`;
+  prompt += `  "created_at": "",\n`;
+  prompt += `  "updated_at": "",\n`;
+  prompt += `  "checkpoints": [],\n`;
+  prompt += `  "hard_stop_triggered": false,\n`;
+  prompt += `  "success_checks_passed": []\n`;
+  prompt += `}\nSTATEEOF\n\n`;
+
+  // Agent prompt file
+  prompt += `# Agent system prompt\ncat > ${scenarioSlug}/AGENT-PROMPT.md << 'PROMPTEOF'\n`;
+  prompt += `[Paste the Deterministic Prompt Pack from Section 2 above]\n`;
+  prompt += `PROMPTEOF\n\n`;
+
+  // Hook files
+  if (needsHooks) {
+    prompt += `# Hook definitions\n`;
+    allHooks.forEach(h => {
+      const hookSlug = h.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+      prompt += `cat > ${scenarioSlug}/hooks/${hookSlug}.md << 'HOOKEOF'\n`;
+      prompt += `# Hook: ${h}\n`;
+      if (h.includes('Ralph')) {
+        prompt += `## Trigger: Every 5 actions\n`;
+        prompt += `## Logic:\n`;
+        prompt += `1. Compare current_step to last 5 checkpoints\n`;
+        prompt += `2. IF same action repeated 3+ times → FLAG: Possible infinite loop\n`;
+        prompt += `3. IF flagged → PAUSE execution, LOG to error log, ALERT human\n`;
+      } else if (h.includes('Budget')) {
+        prompt += `## Trigger: After every action\n`;
+        prompt += `## Logic:\n`;
+        prompt += `1. Check cumulative token/cost usage\n`;
+        prompt += `2. IF usage > budget_limit → HARD STOP\n`;
+        prompt += `3. LOG final state to checkpoint\n`;
+      } else if (h.includes('Safety')) {
+        prompt += `## Trigger: Before any write/mutate action\n`;
+        prompt += `## Logic:\n`;
+        prompt += `1. Generate a DIFF of proposed changes\n`;
+        prompt += `2. Present DIFF to human for review\n`;
+        prompt += `3. WAIT for "APPROVED" or "REJECTED" signal\n`;
+        prompt += `4. IF rejected → SKIP action, LOG reason, CONTINUE\n`;
+      } else if (h.includes('Escalation')) {
+        prompt += `## Trigger: retries > 3 OR ambiguity_score > 8\n`;
+        prompt += `## Logic:\n`;
+        prompt += `1. STOP execution\n`;
+        prompt += `2. LOG current state to ERR_LOG\n`;
+        prompt += `3. TRIGGER notification (ping human)\n`;
+        prompt += `4. WAIT for HIL Resume signal before continuing\n`;
+      } else {
+        prompt += `## Trigger: Custom\n## Logic: Define your custom hook behavior here.\n`;
+      }
+      prompt += `HOOKEOF\n\n`;
+    });
+  }
+
+  // Logs
+  prompt += `# Initialize log\ntouch ${scenarioSlug}/logs/execution.log\n`;
+  prompt += `touch ${scenarioSlug}/logs/error.log\n`;
+  prompt += `\`\`\`\n\n`;
+
+  // Heartbeat routine
+  if (needsHB) {
+    prompt += `### 4.2 Heartbeat Routine\n\n`;
+    prompt += `\`\`\`\n`;
+    prompt += `HEARTBEAT TICK SEQUENCE:\n\n`;
+    prompt += `1. [CHECK STATE]   → Read checkpoint.json, verify status != HALTED\n`;
+    prompt += `2. [ANALYZE DELTA] → Compare current_step to total_steps, check for errors\n`;
+    prompt += `3. [EXECUTE]       → Run next action using THOUGHT/ACTION/OBSERVATION/EVIDENCE chain\n`;
+    prompt += `4. [UPDATE]        → Write new checkpoint with timestamp and evidence\n`;
+    prompt += `5. [HOOK CHECK]    → Run all active hooks (Ralph-Wiggams, Budget, Safety)\n`;
+    prompt += `6. [LOOP or EXIT]  → If steps remain and no hard stop → GOTO 1. Else → finalize.\n\n`;
+    prompt += `IDEMPOTENCY RULE: Every action must produce the same result if the heartbeat\n`;
+    prompt += `triggers twice for the same state. Use checkpoint.last_action to skip already-completed work.\n`;
+    prompt += `\`\`\`\n\n`;
+  }
+
+  // Rollback strategy
+  prompt += `### 4.${needsHB ? '3' : '2'} Rollback Strategy\n\n`;
+  prompt += `\`\`\`\n`;
+  prompt += `IF any success check fails after execution:\n`;
+  prompt += `  1. LOG failure details to error.log with timestamp and evidence\n`;
+  prompt += `  2. SET state.status = "ROLLBACK"\n`;
+  prompt += `  3. REVERT outputs to last known good checkpoint\n`;
+  prompt += `  4. INCREMENT state.retries\n`;
+  prompt += `  5. IF retries > 3 → TRIGGER Escalation Hook → HALT\n`;
+  prompt += `  6. ELSE → Resume from last good checkpoint\n`;
+  prompt += `\`\`\`\n\n`;
+
+  prompt += `---\n*Generated by FLOYD Anvil v1.0 — The Anvil never breaks.*\n`;
+
+  // Render output
+  showSection('section-output');
+  const outputEl = $('output-content');
+  outputEl.textContent = prompt;
+}
+
+// -- Copy to Clipboard --
+function copyToClipboard() {
+  const text = $('output-content').textContent;
+  const btn = $('btn-copy');
+
+  // Try modern API first, fall back to execCommand
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => flashCopied(btn)).catch(() => fallbackCopy(text, btn));
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    flashCopied(btn);
+  } catch (e) {
+    alert('Copy failed. Please select the text manually and press Ctrl+C.');
+  }
+  document.body.removeChild(ta);
+}
+
+function flashCopied(btn) {
+  btn.classList.add('show-toast');
+  setTimeout(() => btn.classList.remove('show-toast'), 2000);
+}
+
+// -- Reset --
+function resetAll() {
+  state = { ...INITIAL_STATE };
+  currentStepIndex = 0;
+  visibleSteps = computeVisibleSteps();
+  // Clear all form inputs
+  document.querySelectorAll('.form-input, .form-textarea').forEach(el => el.value = '');
+  document.querySelectorAll('.form-select').forEach(el => el.selectedIndex = 0);
+  document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(el => {
+    el.checked = false;
+    const card = el.closest('.radio-card, .checkbox-card');
+    if (card) card.classList.remove('selected');
+  });
+  clearErrors();
+  showSection('section-hero');
+}
+
+// -- Event Listeners --
+document.addEventListener('DOMContentLoaded', () => {
+  // Radio cards: click to select
+  document.querySelectorAll('.radio-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const radio = card.querySelector('input[type="radio"]');
+      radio.checked = true;
+      card.closest('.radio-group').querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+    });
+  });
+
+  // Checkbox cards: click to toggle
+  document.querySelectorAll('.checkbox-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName === 'INPUT') return; // let native behavior handle
+      const cb = card.querySelector('input[type="checkbox"]');
+      cb.checked = !cb.checked;
+      card.classList.toggle('selected', cb.checked);
+    });
+    card.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+      card.classList.toggle('selected', e.target.checked);
+    });
+  });
+
+  // Environment dropdown: show/hide custom
+  $('f-environment').addEventListener('change', (e) => {
+    $('env-custom-group').style.display = e.target.value === 'Custom' ? 'block' : 'none';
+  });
+
+  // Heartbeat dropdown: show/hide custom
+  $('f-heartbeatStore').addEventListener('change', (e) => {
+    $('hb-custom-group').style.display = e.target.value === 'Custom' ? 'block' : 'none';
+  });
+});
+</script>
+
+</body>
+</html>

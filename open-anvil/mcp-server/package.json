@@ -1,0 +1,23 @@
+{
+  "name": "open-anvil-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Open Anvil — bridges any LLM to Chrome browser automation via WebSocket",
+  "type": "module",
+  "main": "server.js",
+  "bin": {
+    "open-anvil-mcp": "./server.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "start:debug": "node server.js --debug",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "ws": "8.19.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT"
+}
