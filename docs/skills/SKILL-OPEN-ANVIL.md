@@ -141,6 +141,25 @@ This document transforms you into an expert Open Anvil operator. After ingesting
 Execute this sequence exactly once when you first receive this skill:
 
 ```
+STEP 1.0: Prerequisites check
+  BEFORE executing this skill, you MUST have access to Open Anvil tools.
+  This requires ONE of the following contexts:
+    
+    A) You are an MCP client with Open Anvil tools bound (e.g., Claude Desktop with MCP config)
+    B) You are an LLM invoked through an MCP server that exposes Open Anvil tools
+    C) You are running in an environment where Open Anvil MCP tools are registered
+  
+  IF you do not have tool access (cannot invoke list_tabs, navigate_to, etc.) → BLOCKED.
+    RECOVERY: This skill document cannot be executed without tool access.
+    Report to user: "Open Anvil tools not available in this context.
+    Required: MCP client configured with open-anvil-mcp server.
+    Setup: Add open-anvil/mcp-server to your MCP client configuration."
+    HALT. Do not proceed to STEP 1.1 until tool access is confirmed.
+  
+  To verify tool access before proceeding:
+    - Check your available tools list for Open Anvil tools (list_tabs, navigate_to, perceive, etc.)
+    - If you have a tools/list or similar introspection method, verify Open Anvil tools are present
+
 STEP 1.1: Determine your perception mode
   IF you can interpret images (base64 PNG) → MODE = "vision"
   ELSE → MODE = "perception" (default, most token-efficient)
