@@ -1,6 +1,6 @@
 {
   "name": "open-anvil-mcp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "MCP server for Open Anvil — bridges any LLM to Chrome browser automation via WebSocket",
   "type": "module",
   "main": "server.js",
