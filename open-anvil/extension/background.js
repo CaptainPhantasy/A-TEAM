@@ -13,7 +13,7 @@ const WS_BASE_URL = 'ws://127.0.0.1:7777';
 const RECONNECT_DELAY_BASE = 1000;
 const RECONNECT_MAX_ATTEMPTS = 20;
 const KEEP_ALIVE_INTERVAL_MIN = 0.4; // ~24 seconds
-const NATIVE_HOST_NAME = 'com.floyd.tty';
+const NATIVE_HOST_NAME = 'com.openanvil.native';
 const NATIVE_RECONNECT_DELAY_BASE = 2000;
 const NATIVE_RECONNECT_MAX = 10;
 
@@ -93,14 +93,16 @@ chrome.alarms.create('anvil-keep-alive', { periodInMinutes: KEEP_ALIVE_INTERVAL_
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'anvil-keep-alive') {
-    // Check WS health
+    // Check WS health — reset backoff on alarm-triggered reconnect
     if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reconnectAttempts = 0;
       connectWebSocket();
     } else {
       ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
     }
-    // Check native messaging health — reconnect if dropped
+    // Check native messaging health — reset backoff on alarm-triggered reconnect
     if (!nativePort) {
+      nativeReconnectAttempts = 0;
       connectNative();
     }
     refreshBadge();
@@ -136,7 +138,6 @@ async function connectNative() {
       const error = chrome.runtime.lastError;
       console.log('[Anvil] Native host disconnected:', error?.message || 'no error');
       nativePort = null;
-      nativeReconnectAttempts = 0;
       refreshBadge();
       scheduleNativeReconnect();
     });
@@ -148,6 +149,7 @@ async function connectNative() {
     });
 
     console.log('[Anvil] Connected to native host:', NATIVE_HOST_NAME);
+    nativeReconnectAttempts = 0;
     refreshBadge();
   } catch (e) {
     console.error('[Anvil] Native host connection failed:', e.message);
@@ -310,7 +312,7 @@ function scheduleReconnect() {
   if (reconnectTimer) return;
   if (reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
     console.error('[Anvil] Max reconnect attempts reached. Will retry on next alarm.');
-    reconnectAttempts = 0;
+    // Don't reset — let the keep-alive alarm retry. Reset only on success.
     return;
   }
   const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(2, reconnectAttempts), 30000);

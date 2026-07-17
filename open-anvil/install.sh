@@ -40,8 +40,8 @@ case "$PLATFORM" in
 esac
 
 MCP_SERVER="$SCRIPT_DIR/mcp-server/server.js"
-NATIVE_HOST="${NATIVE_HOST_PATH:-$SCRIPT_DIR/../FloydTTYBridge/extension/native_host.py}"
-NM_MANIFEST="$CHROME_NM_DIR/com.floyd.tty.json"
+NATIVE_HOST="${NATIVE_HOST_PATH:-$SCRIPT_DIR/native_host.py}"
+NM_MANIFEST="$CHROME_NM_DIR/com.openanvil.native.json"
 
 # ─── Helpers ───────────────────────────────────────────────────────────────
 print_header() {
@@ -58,15 +58,15 @@ error() { echo "  [✗] $1" >&2; exit 1; }
 
 check_prereqs() {
   if ! command -v node &>/dev/null; then
-    error "Node.js is required (v18+). Install from https://nodejs.org"
+    error "Node.js is required (v20+). Install from https://nodejs.org"
   fi
   if ! command -v python3 &>/dev/null; then
     error "Python 3 is required. Install from https://python.org"
   fi
   local node_ver
   node_ver=$(node -v | sed 's/v//' | cut -d. -f1)
-  if [[ "$node_ver" -lt 18 ]]; then
-    error "Node.js v18+ required. Found v${node_ver}."
+  if [[ "$node_ver" -lt 20 ]]; then
+    error "Node.js v20+ required. Found v${node_ver}."
   fi
 }
 
@@ -86,7 +86,6 @@ generate_token() {
     token=$(node -e "console.log(require('crypto').randomBytes(24).toString('hex'))")
     echo "$token" > "$token_file"
     chmod 600 "$token_file"
-    info "Generated WS token: $token"
     info "Token saved to $token_file"
   fi
 }
@@ -112,8 +111,8 @@ register_native_host() {
 
   cat > "$NM_MANIFEST" <<EOF
 {
-  "name": "com.floyd.tty",
-  "description": "Floyd's Labs TTY Bridge + Open Anvil MCP Bridge",
+  "name": "com.openanvil.native",
+  "description": "Open Anvil MCP Bridge",
   "path": "${NATIVE_HOST}",
   "type": "stdio",
   "allowed_origins": [

@@ -2,7 +2,7 @@
 // Pure logic, no I/O. Server feeds events in, agents call perceive() out.
 'use strict';
 
-export const PERCEPTION_ENGINE_VERSION = '1.1.0';
+export const PERCEPTION_ENGINE_VERSION = '1.2.0';
 
 // ─── Caps ────────────────────────────────────────────────────────────────────
 const MAX_NODES_PER_TAB = 5000;
