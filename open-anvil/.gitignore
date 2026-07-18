@@ -5,3 +5,8 @@ debug/trace-*.jsonl
 *.log
 .DS_Store
 extension/background-floyd-original.js
+BUILD_LOG.md
+HARDENING_PLAN.md
+
+# Auto-generated tokens
+.config/open-anvil/token

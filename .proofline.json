@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "name": "open-anvil-install",
+      "command": ["npm", "ci", "--prefix", "open-anvil", "--ignore-scripts"],
+      "required": true
+    },
+    {
+      "name": "open-anvil-tests",
+      "command": ["npm", "test", "--prefix", "open-anvil"],
+      "required": true
+    },
+    {
+      "name": "open-anvil-lint",
+      "command": ["open-anvil/node_modules/.bin/eslint", "open-anvil/extension", "open-anvil/mcp-server"],
+      "required": true
+    },
+    {
+      "name": "open-anvil-native-host-compile",
+      "command": ["python3", "-m", "py_compile", "open-anvil/native_host.py"],
+      "required": true
+    }
+  ],
+  "include": [
+    ".proofline.json",
+    "open-anvil/extension/background.js",
+    "open-anvil/install.sh",
+    "open-anvil/mcp-server/perception-engine.js",
+    "open-anvil/mcp-server/perception-tools.js",
+    "open-anvil/mcp-server/test/agent-harness.test.js",
+    "open-anvil/mcp-server/test/mcp-contract.test.js",
+    "open-anvil/mcp-server/test/security.test.js",
+    "open-anvil/native_host.py"
+  ],
+  "deny": [
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "node_modules/**",
+    ".git/**",
+    ".harness/**",
+    ".pi/**",
+    ".omp/**",
+    ".supercache/**",
+    ".floyd/**",
+    ".planning/**",
+    "FLOYD.md",
+    "Issues/**",
+    "SSOT/**",
+    "docs/Floyd's Labs MCP LLM Handoff.md",
+    "open-anvil/background.js",
+    "open-anvil/dogfood-*.mjs",
+    "open-anvil/mcp-server/_cdp_load.cjs",
+    "open-anvil/native_host_test.js",
+    "open-anvil/native_host_wrapper.sh"
+  ],
+  "baseBranch": "feature/skills-enhancement",
+  "publish": true,
+  "allowLocalRemote": false
+}

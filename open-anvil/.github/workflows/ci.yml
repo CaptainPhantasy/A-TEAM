@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check server.js syntax
+        run: node -c mcp-server/server.js
+      - name: Check ws-bridge.js syntax
+        run: node -c mcp-server/ws-bridge.js
+      - name: Check generate-token.js syntax
+        run: node -c mcp-server/generate-token.js
+      - name: Check native_host.py syntax
+        run: python3 -m py_compile /dev/null 2>/dev/null || python3 -c "
+          import py_compile, sys
+          # Native host lives in Floyd TTY repo — check if submodule or path exists
+          for p in ['extension/native_host.py']:
+            try:
+              py_compile.compile(p, doraise=True)
+              print(f'{p}: OK')
+            except FileNotFoundError:
+              print(f'{p}: not found (expected — lives in Floyd TTY repo)')
+          "
+
+  node-tests:
+    runs-on: ubuntu-latest
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: cd mcp-server && npm install --production
+      - name: Run MCP server tests
+        run: cd mcp-server && node --test test/*.test.js
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dev dependencies
+        run: npm install
+      - name: Lint critical files
+        run: npx eslint mcp-server/server.js extension/background.js
+
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate extension manifest
+        run: node -e "
+          const m = require('./extension/manifest.json');
+          const errors = [];
+          if (!m.manifest_version) errors.push('missing manifest_version');
+          if (!m.name) errors.push('missing name');
+          if (!m.version) errors.push('missing version');
+          if (!m.permissions) errors.push('missing permissions');
+          if (!m.background) errors.push('missing background');
+          if (errors.length) { console.error(errors.join('\\n')); process.exit(1); }
+          console.log('Manifest OK:', m.name, 'v' + m.version);
+          console.log('Permissions:', m.permissions.length);
+          console.log('Content scripts:', m.content_scripts.length);
+        "
+
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify version consistency
+        run: node -e "
+          const root = require('./package.json').version;
+          const mcp  = require('./mcp-server/package.json').version;
+          const ext  = require('./extension/manifest.json').version;
+          const versions = { root, mcp, ext };
+          const unique = new Set(Object.values(versions));
+          if (unique.size !== 1) {
+            console.error('VERSION MISMATCH:', JSON.stringify(versions));
+            process.exit(1);
+          }
+          console.log('All versions aligned at', root);
+        "

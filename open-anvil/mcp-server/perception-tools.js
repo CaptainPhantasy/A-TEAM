@@ -1,7 +1,7 @@
 // perception-tools.js — MCP tool definitions and handlers for the Perception Engine
 'use strict';
 
-export const PERCEPTION_TOOLS_VERSION = '1.1.0';
+export const PERCEPTION_TOOLS_VERSION = '1.2.0';
 
 function objectSchema(properties, required = []) {
   return { type: 'object', properties, required, additionalProperties: true };

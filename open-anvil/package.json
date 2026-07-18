@@ -1,6 +1,6 @@
 {
   "name": "open-anvil",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Vendor-agnostic browser automation toolkit for AI agents — MCP-compatible",
   "private": true,
   "workspaces": [
@@ -11,5 +11,10 @@
     "test": "npm test --workspace=mcp-server",
     "install:deps": "cd mcp-server && npm install"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "globals": "^17.4.0"
+  }
 }

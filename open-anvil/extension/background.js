@@ -1,5 +1,6 @@
-// background.js — Open Anvil Agent Pilot v1.0.0 Service Worker
-// WebSocket client connecting to MCP server. Routes tool calls to content scripts.
+// background.js — Open Anvil Agent Pilot v1.2.0 Service Worker
+// Dual-channel: WebSocket (local MCP server) + Native Messaging (persistent pipe).
+// Routes tool calls to content scripts. Falls back to native when WS is unavailable.
 'use strict';
 importScripts('cdp.js');
 importScripts('net-rules.js');
@@ -12,23 +13,46 @@ const WS_BASE_URL = 'ws://127.0.0.1:7777';
 const RECONNECT_DELAY_BASE = 1000;
 const RECONNECT_MAX_ATTEMPTS = 20;
 const KEEP_ALIVE_INTERVAL_MIN = 0.4; // ~24 seconds
+const NATIVE_HOST_NAME = 'com.openanvil.native';
+const NATIVE_RECONNECT_DELAY_BASE = 2000;
+const NATIVE_RECONNECT_MAX = 10;
 
 // ─── State ──────────────────────────────────────────────────────────────────
 let ws = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
+let nativePort = null;
+let nativeReconnectAttempts = 0;
+let nativeReconnectTimer = null;
+let activeChannel = 'none'; // 'ws' | 'native' | 'none'
 
 // ─── Connection Status Indicator ─────────────────────────────────────────────
-function updateBadge(connected) {
+function updateBadge(state) {
   try {
-    chrome.action.setBadgeText({ text: connected ? ' ' : '' });
-    chrome.action.setBadgeBackgroundColor({ color: connected ? '#C0C0C0' : [0, 0, 0, 0] });
-    chrome.action.setTitle({ title: connected ? 'Open Anvil — Debugging' : 'Open Anvil — Disconnected' });
-  } catch (_) {
-    // May fail during early startup
-  }
+    const cfg = {
+      ws:       { text: 'WS',  color: '#4CAF50' },
+      native:   { text: 'NM',  color: '#2196F3' },
+      both:     { text: '●',   color: '#9C27B0' },
+      none:     { text: '',    color: [0, 0, 0, 0] }
+    };
+    const c = cfg[state] || cfg.none;
+    chrome.action.setBadgeText({ text: c.text });
+    chrome.action.setBadgeBackgroundColor({ color: c.color });
+    const labels = { ws: 'WebSocket', native: 'Native Messaging', both: 'Dual Channel', none: 'Disconnected' };
+    chrome.action.setTitle({ title: `Open Anvil — ${labels[state] || 'Unknown'}` });
+  } catch (_) {}
 }
-updateBadge(false);
+updateBadge('none');
+
+function refreshBadge() {
+  const wsUp = ws && ws.readyState === WebSocket.OPEN;
+  const nmUp = nativePort !== null;
+  if (wsUp && nmUp) activeChannel = 'both';
+  else if (wsUp) activeChannel = 'ws';
+  else if (nmUp) activeChannel = 'native';
+  else activeChannel = 'none';
+  updateBadge(activeChannel);
+}
 
 // ─── Session Tab Group (silver ring around active tab) ───────────────────────
 let sessionGroupId = null;
@@ -69,14 +93,138 @@ chrome.alarms.create('anvil-keep-alive', { periodInMinutes: KEEP_ALIVE_INTERVAL_
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'anvil-keep-alive') {
-    // Ping to keep service worker alive and check WS health
+    // Check WS health — reset backoff on alarm-triggered reconnect
     if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reconnectAttempts = 0;
       connectWebSocket();
     } else {
       ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
     }
+    // Check native messaging health — reset backoff on alarm-triggered reconnect
+    if (!nativePort) {
+      nativeReconnectAttempts = 0;
+      connectNative();
+    }
+    refreshBadge();
   }
 });
+
+// ─── Native Messaging Bridge ────────────────────────────────────────────────
+// Persistent pipe via chrome.runtime.connectNative. Never goes stale because
+// Chrome manages the native host lifecycle. Falls back when WS is unavailable.
+
+async function connectNative() {
+  if (nativePort) return; // Already connected
+
+  try {
+    const hasPermission = await chrome.permissions.contains({ permissions: ['nativeMessaging'] });
+    if (!hasPermission) {
+      console.log('[Anvil] nativeMessaging permission not granted');
+      return;
+    }
+  } catch (_) {
+    return;
+  }
+
+  try {
+    nativePort = chrome.runtime.connectNative(NATIVE_HOST_NAME);
+
+    nativePort.onMessage.addListener((msg) => {
+      if (!msg || typeof msg !== 'object') return;
+      handleNativeMessage(msg);
+    });
+
+    nativePort.onDisconnect.addListener(() => {
+      const error = chrome.runtime.lastError;
+      console.log('[Anvil] Native host disconnected:', error?.message || 'no error');
+      nativePort = null;
+      refreshBadge();
+      scheduleNativeReconnect();
+    });
+
+    // Announce ourselves to native host
+    nativePort.postMessage({
+      type: 'anvil_register',
+      data: { version: '1.2.0', channel: 'native_mcp' }
+    });
+
+    console.log('[Anvil] Connected to native host:', NATIVE_HOST_NAME);
+    nativeReconnectAttempts = 0;
+    refreshBadge();
+  } catch (e) {
+    console.error('[Anvil] Native host connection failed:', e.message);
+    scheduleNativeReconnect();
+  }
+}
+
+function scheduleNativeReconnect() {
+  if (nativeReconnectTimer) return;
+  if (nativeReconnectAttempts >= NATIVE_RECONNECT_MAX) {
+    console.log('[Anvil] Native reconnect max reached, waiting for alarm');
+    nativeReconnectAttempts = 0;
+    return;
+  }
+  const delay = Math.min(NATIVE_RECONNECT_DELAY_BASE * Math.pow(2, nativeReconnectAttempts), 30000);
+  nativeReconnectAttempts++;
+  nativeReconnectTimer = setTimeout(() => {
+    nativeReconnectTimer = null;
+    connectNative();
+  }, delay);
+}
+
+async function handleNativeMessage(msg) {
+  const msgType = msg.type || '';
+
+  // ── MCP Tool Calls from native host ──────────────────────────────────────
+  if (msgType === 'mcp_tool_call') {
+    const toolMsg = {
+      id: msg.requestId || msg.id,
+      type: 'tool_call',
+      tool: msg.tool,
+      args: msg.args || {}
+    };
+    const result = await routeToolCall(toolMsg);
+    if (nativePort) {
+      nativePort.postMessage({
+        type: 'tool_response',
+        requestId: msg.requestId || msg.id,
+        success: result.success !== false,
+        result: result.result,
+        error: result.error,
+        duration: result.duration
+      });
+    }
+    return;
+  }
+
+  // ── Server requests fresh snapshots (reconnect/init via native) ──────────
+  if (msgType === 'mcp_perception_init') {
+    requestPerceptionSnapshots();
+    return;
+  }
+
+  // ── Pong from native host keepalive ──────────────────────────────────────
+  if (msgType === 'pong') return;
+
+  // ── Ready signal from native host ────────────────────────────────────────
+  if (msgType === 'ready') {
+    console.log('[Anvil] Native host ready:', msg.version || 'unknown');
+    return;
+  }
+}
+
+function sendToNative(msg) {
+  if (nativePort) {
+    try {
+      nativePort.postMessage(msg);
+      return true;
+    } catch (_) {}
+  }
+  return false;
+}
+
+// Connect native on startup
+connectNative();
 
 // ─── WebSocket Connection ───────────────────────────────────────────────────
 async function getWsUrl() {
@@ -109,12 +257,12 @@ function _doConnect(wsUrl) {
   ws.onopen = () => {
     console.log('[Anvil] Connected to MCP server');
     reconnectAttempts = 0;
-    updateBadge(true);
+    refreshBadge();
     // Announce ourselves
     ws.send(JSON.stringify({
       type: 'status',
       event: 'connected',
-      data: { version: '1.1.0', agent: 'open-anvil-extension' }
+      data: { version: '1.2.0', agent: 'open-anvil-extension' }
     }));
   };
 
@@ -150,7 +298,7 @@ function _doConnect(wsUrl) {
   ws.onclose = () => {
     console.log('[Anvil] WebSocket closed');
     ws = null;
-    updateBadge(false);
+    refreshBadge();
     scheduleReconnect();
   };
 
@@ -164,7 +312,7 @@ function scheduleReconnect() {
   if (reconnectTimer) return;
   if (reconnectAttempts >= RECONNECT_MAX_ATTEMPTS) {
     console.error('[Anvil] Max reconnect attempts reached. Will retry on next alarm.');
-    reconnectAttempts = 0;
+    // Don't reset — let the keep-alive alarm retry. Reset only on success.
     return;
   }
   const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(2, reconnectAttempts), 30000);
@@ -471,13 +619,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return false;
       }
 
-      // Forward browser events to MCP server
+      // Forward browser events to MCP server (WS preferred, native fallback)
+      const eventPayload = { type: 'browser_event', event: safeEvent, timestamp: Date.now() };
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'browser_event',
-          event: safeEvent,
-          timestamp: Date.now()
-        }));
+        ws.send(JSON.stringify(eventPayload));
+      } else {
+        sendToNative({ type: 'mcp_browser_event', event: safeEvent, timestamp: Date.now() });
       }
       return false;
     }
@@ -490,16 +637,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ─── Perception: Event Forwarding ────────────────────────────────────────
 
 // Forward perception events from content scripts to server (fire-and-forget)
+// Prefers WebSocket, falls back to native messaging
 function forwardPerceptionMessage(message, sender) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
   const tabId = sender.tab?.id;
   if (!tabId) return;
 
-  ws.send(JSON.stringify({
-    type: message.type,
-    tabId,
-    ...message
-  }));
+  const payload = JSON.stringify({ type: message.type, tabId, ...message });
+
+  // Prefer WebSocket — lower latency for streaming perception events
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(payload);
+    return;
+  }
+
+  // Fall back to native messaging with mcp_ prefix
+  if (nativePort) {
+    sendToNative({ type: 'mcp_' + message.type, tabId, ...message });
+  }
 }
 
 // Request fresh snapshots from all tabs
@@ -515,27 +669,24 @@ async function requestPerceptionSnapshots() {
   }
 }
 
-// Tab closed → notify server
+// Tab closed → notify server (WS preferred, native fallback)
 chrome.tabs.onRemoved.addListener((tabId) => {
+  const payload = { type: 'perception_tab_closed', tabId, timestamp: Date.now() };
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: 'perception_tab_closed',
-      tabId,
-      timestamp: Date.now()
-    }));
+    ws.send(JSON.stringify(payload));
+  } else {
+    sendToNative({ type: 'mcp_perception_tab_closed', tabId, timestamp: Date.now() });
   }
 });
 
-// Navigation completed → notify server
+// Navigation completed → notify server (WS preferred, native fallback)
 chrome.webNavigation.onCompleted.addListener((details) => {
-  if (details.frameId !== 0) return; // main frame only
+  if (details.frameId !== 0) return;
+  const payload = { type: 'perception_navigation', tabId: details.tabId, url: details.url, timestamp: Date.now() };
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: 'perception_navigation',
-      tabId: details.tabId,
-      url: details.url,
-      timestamp: Date.now()
-    }));
+    ws.send(JSON.stringify(payload));
+  } else {
+    sendToNative({ type: 'mcp_perception_navigation', tabId: details.tabId, url: details.url, timestamp: Date.now() });
   }
 });
 
@@ -551,7 +702,12 @@ if (globalThis.__OPEN_ANVIL_TEST__) {
   globalThis.__anvilBackgroundTest = {
     routeToolCall,
     handleBrowserApiTool,
+    handleNativeMessage,
     getWs: () => ws,
-    setWs: (w) => { ws = w; }
+    setWs: (w) => { ws = w; },
+    getNativePort: () => nativePort,
+    setNativePort: (p) => { nativePort = p; },
+    getActiveChannel: () => activeChannel,
+    sendToNative
   };
 }

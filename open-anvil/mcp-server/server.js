@@ -6,7 +6,11 @@
 import { createServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createInterface } from 'node:readline';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { PerceptionEngine, PERCEPTION_ENGINE_VERSION } from './perception-engine.js';
 import { PERCEPTION_TOOL_DEFINITIONS, PERCEPTION_TOOL_NAMES, PERCEPTION_TOOLS_VERSION, handlePerceptionTool } from './perception-tools.js';
 
@@ -15,15 +19,102 @@ const PORT = parseInt(process.env.ANVIL_PORT || '7777', 10);
 const HOST = process.env.ANVIL_HOST || '127.0.0.1';
 const TIMEOUT = parseInt(process.env.ANVIL_TIMEOUT || '30000', 10);
 const DEBUG = process.env.ANVIL_DEBUG === 'true' || process.argv.includes('--debug');
+const JSON_LOG = process.env.ANVIL_LOG_FORMAT === 'json';
+
+// ─── Logging ────────────────────────────────────────────────────────────────
+function log(...args) {
+  if (!DEBUG) return;
+  const msg = args.join(' ');
+  if (JSON_LOG) {
+    process.stderr.write(JSON.stringify({ ts: Date.now(), lvl: 'debug', msg }) + '\n');
+  } else {
+    process.stderr.write(`[anvil] ${msg}\n`);
+  }
+}
+
+function logPerception(...args) {
+  const msg = args.join(' ');
+  if (JSON_LOG) {
+    process.stderr.write(JSON.stringify({ ts: Date.now(), lvl: 'perception', msg }) + '\n');
+  } else {
+    process.stderr.write(`[anvil:perception] ${msg}\n`);
+  }
+}
+
+function logError(...args) {
+  const msg = args.join(' ');
+  if (JSON_LOG) {
+    process.stderr.write(JSON.stringify({ ts: Date.now(), lvl: 'error', msg }) + '\n');
+  } else {
+    process.stderr.write(`[anvil:ERROR] ${msg}\n`);
+  }
+}
 
 const WS_TOKEN = process.env.ANVIL_WS_TOKEN || '';
-const SERVER_INFO = { name: 'open-anvil', version: '1.1.0' };
+const SERVER_INFO = { name: 'open-anvil', version: '1.2.0' };
 const PROTOCOL_VERSION = '2024-11-05';
+const STDIO_MODE = process.env.MCP_TRANSPORT === 'stdio';
+
+// ─── Auto-generate WS token if not set (standalone mode only) ─────────────
+const TOKEN_DIR = process.env.XDG_CONFIG_HOME
+  ? join(process.env.XDG_CONFIG_HOME, 'open-anvil')
+  : join(homedir(), '.config', 'open-anvil');
+const TOKEN_FILE = join(TOKEN_DIR, 'token');
+
+function ensureToken() {
+  if (WS_TOKEN) return WS_TOKEN;
+  if (STDIO_MODE) return ''; // No token needed in stdio mode — native host is the client
+  if (existsSync(TOKEN_FILE)) return readFileSync(TOKEN_FILE, 'utf-8').trim();
+  mkdirSync(TOKEN_DIR, { recursive: true });
+  const token = randomBytes(24).toString('hex');
+  writeFileSync(TOKEN_FILE, token, { mode: 0o600 });
+  log(`Auto-generated WS token: ${token}`);
+  log(`Token saved to ${TOKEN_FILE}`);
+  return token;
+}
+
+const EFFECTIVE_WS_TOKEN = ensureToken();
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────
+const RATE_LIMIT_WINDOW = 1000; // ms
+const RATE_LIMIT_MAX = 30; // max calls per window
+const rateLimitCounts = new Map(); // source → { count, windowStart }
+
+function checkRateLimit(source) {
+  const now = Date.now();
+  let entry = rateLimitCounts.get(source);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+    entry = { count: 0, windowStart: now };
+    rateLimitCounts.set(source, entry);
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    log(`Rate limit exceeded for ${source}: ${entry.count}/${RATE_LIMIT_MAX} per ${RATE_LIMIT_WINDOW}ms`);
+    return false;
+  }
+  return true;
+}
+
+// Periodically clean stale rate limit entries and routing entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitCounts) {
+    if (now - entry.windowStart > RATE_LIMIT_WINDOW * 2) {
+      rateLimitCounts.delete(key);
+    }
+  }
+  // Clean stale response routing entries (shouldn't accumulate but safety net)
+  if (mcpResponseRouting.size > 100) {
+    mcpResponseRouting.clear();
+  }
+}, 10000);
 
 // ─── Tool Definitions ───────────────────────────────────────────────────────
 function objectSchema(properties, required = []) {
   return { type: 'object', properties, required, additionalProperties: true };
 }
+
+const SHELL_ENABLED = process.env.ANVIL_SHELL === 'true';
 
 const TOOL_DEFINITIONS = [
   // Navigation
@@ -80,103 +171,101 @@ const TOOL_DEFINITIONS = [
   { name: 'gif_start', description: 'Start a GIF recording session.', inputSchema: objectSchema({}) },
   { name: 'gif_add_frame', description: 'Add a frame to active GIF session.', inputSchema: objectSchema({ imageData: { type: 'string' } }, ['imageData']) },
   { name: 'gif_stop', description: 'Stop GIF recording and return result.', inputSchema: objectSchema({ filename: { type: 'string' } }) },
-
-  // Shell (handled locally by MCP server, not forwarded to extension)
-  { name: 'execute_shell', description: 'Execute a shell command on the host machine.', inputSchema: objectSchema({ command: { type: 'string', description: 'Shell command to execute.' }, timeout: { type: 'number', description: 'Timeout in ms (default 30000).' } }, ['command']) },
 ];
+
+// Shell tool only available when ANVIL_SHELL=true (security opt-in)
+if (SHELL_ENABLED) {
+  TOOL_DEFINITIONS.push({
+    name: 'execute_shell',
+    description: 'Execute a shell command on the host machine. SECURITY: This tool is enabled via ANVIL_SHELL=true.',
+    inputSchema: objectSchema({ command: { type: 'string', description: 'Shell command to execute.' }, timeout: { type: 'number', description: 'Timeout in ms (default 30000).' } }, ['command'])
+  });
+}
 
 const ALL_TOOL_DEFINITIONS = [...TOOL_DEFINITIONS, ...PERCEPTION_TOOL_DEFINITIONS];
 const TOOL_NAMES = new Set(ALL_TOOL_DEFINITIONS.map(t => t.name));
-const LOCAL_TOOLS = new Set(['execute_shell']);
+const LOCAL_TOOLS = new Set(SHELL_ENABLED ? ['execute_shell'] : []);
 
 // ─── State ──────────────────────────────────────────────────────────────────
 let extensionWs = null;
+let mcpClientWs = null; // MCP client connected via WS (e.g., pi via ws-bridge)
 const pendingRequests = new Map(); // id → { resolve, timer }
-let requestCounter = 0;
+const mcpResponseRouting = new Map(); // MCP request id → 'ws' | 'stdio'
+const MAX_PENDING_REQUESTS = 1000; // Prevent memory leak from abandoned requests
+let mcpIdCounter = 0;
 let initialized = false;
 const perception = new PerceptionEngine();
 let activeTabId = null; // Tracked from extension messages
 
-// ─── Logging ────────────────────────────────────────────────────────────────
-function log(...args) {
-  if (DEBUG) process.stderr.write(`[anvil] ${args.join(' ')}\n`);
-}
+// ─── Extension Communication// ─── Extension Communication ────────────────────────────────────────────────
 
-function logPerception(...args) {
-  process.stderr.write(`[anvil:perception] ${args.join(' ')}\n`);
-}
-
-// ─── MCP stdio Transport ────────────────────────────────────────────────────
-const rl = createInterface({ input: process.stdin, terminal: false });
-
-function sendMcpResponse(obj) {
-  const json = JSON.stringify(obj);
-  process.stdout.write(json + '\n');
-  log('→ MCP:', json.slice(0, 200));
-}
-
-function mcpResult(id, result) {
-  sendMcpResponse({ jsonrpc: '2.0', id, result });
-}
-
-function mcpError(id, code, message, data) {
-  const err = { code, message };
-  if (data !== undefined) err.data = data;
-  sendMcpResponse({ jsonrpc: '2.0', id, error: err });
-}
-
-// ─── Local Tool Handlers ────────────────────────────────────────────────────
-function handleLocalTool(name, args) {
-  if (name === 'execute_shell') {
-    try {
-      const timeout = args.timeout || 30000;
-      const result = execSync(args.command, {
-        timeout,
-        encoding: 'utf-8',
-        maxBuffer: 10 * 1024 * 1024,
-        shell: true
-      });
-      return { success: true, result: { output: result, exitCode: 0 } };
-    } catch (err) {
-      return {
-        success: false,
-        error: err.message,
-        result: { output: err.stdout || '', stderr: err.stderr || '', exitCode: err.status || 1 }
-      };
-    }
-  }
-  return { success: false, error: `Unknown local tool: ${name}` };
-}
-
-// ─── Extension Communication ────────────────────────────────────────────────
-function sendToExtension(toolName, args) {
-  return new Promise((resolve, reject) => {
-    if (!extensionWs || extensionWs.readyState !== WebSocket.OPEN) {
-      resolve({
-        success: false,
-        error: 'Extension not connected. Open Chrome with Open Anvil extension loaded, then reload this server.'
-      });
+function sendToExtensionViaStdio(toolName, args) {
+  return new Promise((resolve) => {
+    if (pendingRequests.size >= MAX_PENDING_REQUESTS) {
+      resolve({ success: false, error: `Too many pending requests (${pendingRequests.size}/${MAX_PENDING_REQUESTS}). Wait for pending tool calls to complete.` });
       return;
     }
 
-    const id = `req_${++requestCounter}_${Date.now()}`;
+    const id = `req_${++mcpIdCounter}_${Date.now()}`;
     const timer = setTimeout(() => {
       pendingRequests.delete(id);
-      resolve({ success: false, error: `Tool call timed out after ${TIMEOUT}ms` });
+      resolve({ success: false, error: `Tool call timed out after ${TIMEOUT}ms (stdio)` });
     }, TIMEOUT);
 
     pendingRequests.set(id, { resolve, timer });
 
+    // Write as JSON-RPC notification — native host will translate to mcp_tool_call
     const msg = JSON.stringify({
-      id,
-      type: 'tool_call',
-      tool: toolName,
-      args: args || {},
-      timestamp: Date.now()
+      jsonrpc: '2.0',
+      method: 'anvil/tool_call',
+      params: { id, tool: toolName, args: args || {} }
     });
 
-    log('→ EXT:', msg.slice(0, 200));
-    extensionWs.send(msg);
+    log('→ EXT (stdio):', msg.slice(0, 200));
+    process.stdout.write(msg + '\n');
+  });
+}
+
+function sendToExtension(toolName, args) {
+  return new Promise((resolve) => {
+    // Try WS first
+    if (extensionWs && extensionWs.readyState === WebSocket.OPEN) {
+      if (pendingRequests.size >= MAX_PENDING_REQUESTS) {
+        resolve({ success: false, error: `Too many pending requests (${pendingRequests.size}/${MAX_PENDING_REQUESTS}). Wait for pending tool calls to complete.` });
+        return;
+      }
+
+      const id = `req_${++mcpIdCounter}_${Date.now()}`;
+      const timer = setTimeout(() => {
+        pendingRequests.delete(id);
+        resolve({ success: false, error: `Tool call timed out after ${TIMEOUT}ms` });
+      }, TIMEOUT);
+
+      pendingRequests.set(id, { resolve, timer });
+
+      const msg = JSON.stringify({
+        id,
+        type: 'tool_call',
+        tool: toolName,
+        args: args || {},
+        timestamp: Date.now()
+      });
+
+      log('→ EXT (ws):', msg.slice(0, 200));
+      extensionWs.send(msg);
+      return;
+    }
+
+    // Fall back to stdio (native host pipe)
+    if (STDIO_MODE) {
+      sendToExtensionViaStdio(toolName, args).then(resolve);
+      return;
+    }
+
+    resolve({
+      success: false,
+      error: 'Extension not connected. Open Chrome with Open Anvil extension loaded, then reload this server.'
+    });
   });
 }
 
@@ -267,7 +356,7 @@ function handleExtensionMessage(data) {
 }
 
 // ─── MCP Protocol Handler ───────────────────────────────────────────────────
-async function handleMcpMessage(line) {
+async function handleMcpMessage(line, source = 'stdio') {
   let msg;
   try {
     msg = JSON.parse(line);
@@ -275,9 +364,35 @@ async function handleMcpMessage(line) {
     return;
   }
 
-  log('← MCP:', line.slice(0, 200));
+  log(`← MCP (${source}):`, line.slice(0, 200));
 
   if (msg.jsonrpc !== '2.0') return;
+
+  // ── Extension responses via native host (stdio mode) ───────────────────
+  // These are forwarded by the native host from the extension's tool_response
+  if (msg.method === 'anvil/tool_response') {
+    const resp = msg.params || {};
+    const pending = pendingRequests.get(resp.id);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingRequests.delete(resp.id);
+      pending.resolve({
+        success: resp.success !== false,
+        result: resp.result,
+        error: resp.error
+      });
+    } else {
+      log('Dropped tool_response for unknown request:', resp.id);
+    }
+    return;
+  }
+
+  // ── Extension perception events via native host (stdio mode) ───────────
+  if (msg.method === 'anvil/perception') {
+    const evt = msg.params || {};
+    handleExtensionMessage(JSON.stringify(evt));
+    return;
+  }
 
   // Notifications (no id) — just acknowledge
   if (msg.id === undefined) {
@@ -289,9 +404,17 @@ async function handleMcpMessage(line) {
 
   const { id, method, params } = msg;
 
+  // Tag this request's response routing
+  if (id !== undefined) {
+    mcpResponseRouting.set(String(id), source);
+  }
+
   switch (method) {
     case 'initialize': {
-      initialized = true;
+      if (!initialized) {
+        initialized = true;
+        log('MCP client initialized');
+      }
       mcpResult(id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: {
@@ -320,6 +443,15 @@ async function handleMcpMessage(line) {
       if (!toolName || !TOOL_NAMES.has(toolName)) {
         mcpResult(id, {
           content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Unknown tool: ${toolName}` }) }],
+          isError: true
+        });
+        break;
+      }
+
+      // Rate limit check
+      if (!checkRateLimit(source)) {
+        mcpResult(id, {
+          content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'Rate limit exceeded. Too many tool calls.' }) }],
           isError: true
         });
         break;
@@ -361,17 +493,32 @@ async function handleMcpMessage(line) {
 }
 
 // ─── WebSocket Server ───────────────────────────────────────────────────────
-const httpServer = createServer();
-const wss = new WebSocketServer({ server: httpServer });
+// Always start WS server. In stdio mode (native host), use a secondary port
+// (default 7778) so pi can connect directly while the native host uses stdin.
+// In standalone mode, use the primary port (default 7777).
+const WS_PORT = STDIO_MODE
+  ? parseInt(process.env.ANVIL_WS_PORT || '7778', 10)
+  : PORT;
 
+const WS_ENABLED = process.env.ANVIL_WS_ENABLED !== 'false';
+
+let httpServer = null;
+let wss = null;
+
+if (WS_ENABLED) {
+  httpServer = createServer();
+  wss = new WebSocketServer({ server: httpServer });
+}
+
+if (wss) {
 wss.on('connection', (ws, req) => {
   log(`Extension connected from ${req.socket.remoteAddress}`);
 
   // ── WebSocket Token Authentication ──────────────────────────────────────
-  if (WS_TOKEN) {
+  if (EFFECTIVE_WS_TOKEN) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const clientToken = url.searchParams.get('token');
-    if (clientToken !== WS_TOKEN) {
+    if (clientToken !== EFFECTIVE_WS_TOKEN) {
       log('Rejecting WebSocket connection: invalid or missing token');
       ws.close(4401, 'Unauthorized');
       return;
@@ -379,35 +526,72 @@ wss.on('connection', (ws, req) => {
     log('WebSocket token verified');
   }
 
-  if (extensionWs && extensionWs.readyState === WebSocket.OPEN) {
-    log('Replacing existing extension connection');
-    extensionWs.close();
-  }
+  // Distinguish MCP client (JSON-RPC) from extension (typed messages)
+  // by peeking at the first message.
+  let clientType = null; // 'extension' | 'mcp_client'
 
-  extensionWs = ws;
+  ws.on('message', (data) => {
+    if (!clientType) {
+      try {
+        const first = JSON.parse(data.toString());
+        clientType = first.jsonrpc === '2.0' ? 'mcp_client' : 'extension';
+      } catch {
+        clientType = 'extension'; // default
+      }
+      log(`WS client identified as: ${clientType}`);
 
-  // Request fresh snapshots from all tabs on (re)connect
-  ws.send(JSON.stringify({ type: 'perception_init', version: EXPECTED_VERSION, timestamp: Date.now() }));
-  perception.resetAllCursors();
+      if (clientType === 'extension') {
+        if (extensionWs && extensionWs.readyState === WebSocket.OPEN) {
+          log('Replacing existing extension connection');
+          extensionWs.close();
+        }
+        extensionWs = ws;
+        // Request fresh snapshots from all tabs
+        ws.send(JSON.stringify({ type: 'perception_init', version: EXPECTED_VERSION, timestamp: Date.now() }));
+        perception.resetAllCursors();
+      }
+    }
 
-  ws.on('message', handleExtensionMessage);
+    if (clientType === 'mcp_client') {
+      // Process as MCP JSON-RPC
+      handleMcpMessage(data.toString().trim(), 'ws');
+    } else {
+      handleExtensionMessage(data);
+    }
+  });
 
   ws.on('close', () => {
-    log('Extension disconnected');
-    if (extensionWs === ws) extensionWs = null;
+    log(`${clientType || 'unknown'} WS disconnected`);
+    if (extensionWs === ws) {
+      extensionWs = null;
+      // Don't clear pending extension requests — they'll timeout naturally
+      // and the error message tells the MCP client to retry
+      log('Extension WS disconnected; tool calls will fail until extension reconnects');
+    }
+    if (mcpClientWs === ws) {
+      mcpClientWs = null;
+      // Clean up response routing for this client
+      for (const [key, val] of mcpResponseRouting) {
+        if (val === 'ws') mcpResponseRouting.delete(key);
+      }
+    }
   });
 
   ws.on('error', (err) => {
-    log('Extension WebSocket error:', err.message);
+    log(`WS error (${clientType || 'unknown'}):`, err.message);
   });
 });
 
+} // end if (wss)
+
+// ─── HTTP Server Start (WS mode only) ──────────────────────────────────────
+if (httpServer) {
 httpServer.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    log(`Port ${PORT} in use, retrying in 1s...`);
+    log(`Port ${WS_PORT} in use, retrying in 1s...`);
     setTimeout(() => {
       httpServer.close();
-      httpServer.listen(PORT, HOST);
+      httpServer.listen(WS_PORT, HOST);
     }, 1000);
   } else {
     log('HTTP server error:', err.message);
@@ -415,9 +599,10 @@ httpServer.on('error', (err) => {
   }
 });
 
-httpServer.listen(PORT, HOST, () => {
-  log(`WebSocket server listening on ws://${HOST}:${PORT}`);
+httpServer.listen(WS_PORT, HOST, () => {
+  log(`WebSocket server listening on ws://${HOST}:${WS_PORT}`);
 });
+} // end if (httpServer)
 
 // ─── Perception Housekeeping ─────────────────────────────────────────────
 setInterval(() => {
@@ -427,7 +612,27 @@ setInterval(() => {
   }
 }, 60000);
 
+// ─── JSON-RPC helpers ────────────────────────────────────────────────────────
+function mcpResult(id, result) {
+  const msg = { jsonrpc: '2.0', id, result };
+  process.stdout.write(JSON.stringify(msg) + '\n');
+}
+
+function mcpError(id, code, message) {
+  const msg = { jsonrpc: '2.0', id, error: { code, message } };
+  process.stdout.write(JSON.stringify(msg) + '\n');
+}
+
+// ─── Local tool handlers (server-side tools that don't need the extension) ──
+function handleLocalTool(toolName, toolArgs) {
+  if (toolName === 'echo') {
+    return { success: true, result: { text: toolArgs.text || '' } };
+  }
+  return { success: false, error: `Unknown local tool: ${toolName}` };
+}
+
 // ─── stdio MCP Input ────────────────────────────────────────────────────────
+const rl = createInterface({ input: process.stdin, terminal: false });
 rl.on('line', (line) => {
   const trimmed = line.trim();
   if (trimmed) handleMcpMessage(trimmed);
@@ -435,23 +640,23 @@ rl.on('line', (line) => {
 
 rl.on('close', () => {
   log('stdin closed, shutting down');
-  wss.close();
-  httpServer.close();
+  if (wss) wss.close();
+  if (httpServer) httpServer.close();
   process.exit(0);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────────────────────
 process.on('SIGINT', () => {
   log('SIGINT received, shutting down');
-  wss.close();
-  httpServer.close();
+  if (wss) wss.close();
+  if (httpServer) httpServer.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   log('SIGTERM received, shutting down');
-  wss.close();
-  httpServer.close();
+  if (wss) wss.close();
+  if (httpServer) httpServer.close();
   process.exit(0);
 });
 
@@ -466,5 +671,6 @@ if (versionMismatch.length > 0) {
 
 log('Open Anvil MCP server started');
 log(`Version: server=${EXPECTED_VERSION} engine=${PERCEPTION_ENGINE_VERSION} tools=${PERCEPTION_TOOLS_VERSION}`);
-log(`Waiting for extension on ws://${HOST}:${PORT}`);
+log(`Mode: ${STDIO_MODE ? 'stdio (native host)' : 'standalone'}`);
+log(`WebSocket: ws://${HOST}:${WS_PORT} (enabled=${WS_ENABLED}, token=${EFFECTIVE_WS_TOKEN ? 'yes' : 'no'})`);
 log('Waiting for MCP client on stdin');
